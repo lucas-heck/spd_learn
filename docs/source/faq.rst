@@ -210,7 +210,7 @@ When should I use filter banks vs. raw EEG?
 - You want explicit frequency decomposition
 - You have sufficient data for the larger model
 
-**Use raw EEG** (EEGSPDNet, GREEN, MAtt) when:
+**Use raw EEG** (EEGSPDNet, GREEN, MAtt, STaRNet) when:
 
 - You want the model to learn frequency representations
 - You prefer end-to-end learning

@@ -36,7 +36,7 @@ The model zoo builds on these blocks and includes SPDNet-based architectures
 for neural decoding, such as :class:`~spd_learn.models.TensorCSPNet`,
 :class:`~spd_learn.models.TSMNet`, :class:`~spd_learn.models.MAtt`,
 :class:`~spd_learn.models.Green`, :class:`~spd_learn.models.EEGSPDNet`,
-and :class:`~spd_learn.models.PhaseSPDNet`.
+:class:`~spd_learn.models.PhaseSPDNet`, and :class:`~spd_learn.models.STaRNet`.
 
 
 Trivialization in SPD Learn

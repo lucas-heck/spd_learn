@@ -611,6 +611,7 @@ building blocks from :py:mod:`spd_learn.modules`.
     MAtt
     PhaseSPDNet
     SPDNet
+    STaRNet
     TensorCSPNet
     TSMNet
 
@@ -660,6 +661,11 @@ Use this table to choose the right model for your application:
      - Raw EEG
      - Grouped convolution
      - Medium
+   * - :class:`STaRNet`
+     - Multi-scale EEG features
+     - Raw EEG
+     - Spatial and temporal branches
+     - High
    * - :class:`MAtt`
      - Attention-based
      - Raw EEG
@@ -713,7 +719,7 @@ Decision Flowchart
                  │
                  ├─── Attention mechanism ──► MAtt
                  │
-                 ├─── Conv feature extraction ──► TSMNet, EEGSPDNet
+                 ├─── Conv feature extraction ──► TSMNet, EEGSPDNet, STaRNet
                  │
                  └─── Nonlinear dynamics ──► PhaseSPDNet
 
@@ -763,6 +769,11 @@ Model Architectures
 
    PhaseDelay → SPDNet
 
+**STaRNet** - Multi-scale spatial and temporal convolution followed by SPD feature extraction:
+
+.. code-block:: text
+
+   Spatial Conv branches → Spatial fusion → Temporal Conv branches → CovLayer → BiMap → LogEig → Linear
 
 Performance Comparison
 ''''''''''''''''''''''
@@ -808,6 +819,12 @@ Based on motor imagery classification benchmarks (BNCI2014-001):
      - ~20K
      - Medium
      - Low
+   * - STaRNet
+     - TBD
+     - TBD
+     - TBD
+     - TBD
+
 
 *Note: Performance varies significantly across subjects and datasets.*
 

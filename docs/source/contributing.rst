@@ -360,7 +360,8 @@ Package Structure
        ├── eegspdnet.py     # EEGSPDNet (Wilson et al., 2025)
        ├── green.py         # GREEN (Paillard et al., 2025)
        ├── matt.py          # MAtt (Pan et al., 2022)
-       └── phase_spdnet.py  # PhaseSPDNet (Carrara et al., 2025)
+       ├── phase_spdnet.py  # PhaseSPDNet (Carrara et al., 2025)
+       └── starnet.py       # STaRNet (Wang et al., 2024)
 
 Functional Layer (``spd_learn.functional``)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
