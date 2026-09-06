@@ -1069,6 +1069,8 @@ SPD Learn provides several pre-built architectures:
      - EEG signal classification with channel-specific convolution and covariance pooling
    * - :class:`~spd_learn.models.PhaseSPDNet`
      - Applies Phase-Space Embedding followed by SPDNet for classification
+   * - :class:`~spd_learn.models.STaRNet`
+     - Multi-scale spatial and temporal convolution followed by SPD feature extraction
 
 
 Integration with Ecosystems
