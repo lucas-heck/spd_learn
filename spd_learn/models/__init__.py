@@ -7,6 +7,7 @@ from .phase_spdnet import (  # noqa: F401  (PhaseDelay re-exported)
     PhaseDelay,
     PhaseSPDNet,
 )
+from .rceegnet import RCEEGNet
 from .spdnet import SPDNet
 from .tensorcsp import TensorCSPNet
 from .tsmnet import TSMNet
@@ -26,6 +27,7 @@ __all__ = [
     "EEGSPDNet",
     "PhaseSPDNet",
     "Green",
+    "RCEEGNet",
 ]
 
 __filter_bank_models__ = ["TensorCSPNet"]
