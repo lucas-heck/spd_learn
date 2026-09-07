@@ -9,7 +9,7 @@ A pure PyTorch library for Symmetric Positive Definite (SPD) matrix learning.
 from . import init
 
 # Models
-from .models import EEGSPDNet, Green, MAtt, PhaseSPDNet, SPDNet, TensorCSPNet, TSMNet
+from .models import EEGSPDNet, Green, MAtt, PhaseSPDNet, RCEEGNet, SPDNet, TensorCSPNet, TSMNet
 
 # Modules (layers)
 from .modules import (
@@ -44,6 +44,7 @@ __all__ = [
     "Green",
     "MAtt",
     "PhaseSPDNet",
+    "RCEEGNet",
     "SPDNet",
     "TensorCSPNet",
     "TSMNet",
