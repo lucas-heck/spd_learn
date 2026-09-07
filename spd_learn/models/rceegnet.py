@@ -69,7 +69,7 @@ class RCEEGNet(nn.Module):
         self.register_buffer("identity", torch.eye(n_spatial_filters)*reg_cov)
 
         self.spd_features = nn.Sequential(
-            BiMap(n_spatial_filters, reduced_dim),
+            BiMap(n_spatial_filters, reduced_dim, init_method="stiefel"),
             ReEig(threshold=reeig_threshold),
             LogEig()
         )
@@ -78,6 +78,23 @@ class RCEEGNet(nn.Module):
             in_features = (reduced_dim * (reduced_dim + 1)) // 2,
             out_features = n_outputs,
         )
+
+        self.reset_parameters()
+
+    @torch.no_grad()
+    def reset_parameters(self) -> None:
+        """Initialize weights according to Section H.a of Tibermacine et al. (2025)."""
+        nn.init.kaiming_uniform_(self.conv_spatial[0].weight, nonlinearity="relu")
+        nn.init.kaiming_uniform_(self.conv_temporal[0].weight, nonlinearity="relu")
+
+        if hasattr(self.spd_features[0], "reset_parameters"):
+            self.spd_features[0].reset_parameters()
+
+        m = self.classifier.in_features
+        bound = (6.0 / m) ** 0.5
+        nn.init.uniform_(self.classifier.weight, -bound, bound)
+        if self.classifier.bias is not None:
+            nn.init.zeros_(self.classifier.bias)
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
