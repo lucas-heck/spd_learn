@@ -1,7 +1,5 @@
 # Copyright (c) 2024-now SPD Learn Developers
 # SPDX-License-Identifier: BSD-3-Clause
-from warnings import warn
-
 import torch
 import torch.nn as nn
 
@@ -20,18 +18,18 @@ class RCEEGNet(nn.Module):
     n_outputs : int, default=2
         Number of output classes for classification.
     n_spatial_filters : int, default=22
-        Number of spatial filters learned by the convolutional frontend 
-        (dimension D in the paper). Sets the dimension of the initial 
+        Number of spatial filters learned by the convolutional frontend
+        (dimension D in the paper). Sets the dimension of the initial
         covariance matrix.
     reduced_dim : int, default=8
-        Target subspace dimension for the BiMap layer (dimension d 
+        Target subspace dimension for the BiMap layer (dimension d
         in the paper, where reduced_dim <= n_spatial_filters).
     reg_cov : float, default=1e-5
-        Diagonal regularization parameter (epsilon in Eq. 8 of the paper) ensuring positive 
-        definiteness of the sample covariance matrix.
+        Diagonal regularization parameter (epsilon in Eq. 8 of the paper)
+        ensuring positive definiteness of the sample covariance matrix.
     reeig_threshold : float, default=1e-12
-        Floor threshold for eigenvalue clamping (epsilon_eig in Section III-E of the paper) 
-        for numerical stability before matrix logarithm.
+        Floor threshold for eigenvalue clamping (epsilon_eig in Section
+        III-E of the paper) for numerical stability before matrix logarithm.
     """
 
     def __init__(
