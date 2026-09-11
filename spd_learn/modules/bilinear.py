@@ -161,7 +161,7 @@ class BiMap(nn.Module):
         out_features: int,
         depthwise: int = 1,
         parametrized: bool = True,
-        orthogonal_map: Optional[str] = None,
+        orthogonal_map: Optional[str] = "cayley",
         init_method: Literal[
             "kaiming_uniform", "orthogonal", "stiefel"
         ] = "kaiming_uniform",
