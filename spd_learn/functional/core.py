@@ -185,23 +185,22 @@ class matrix_log(Function):
     @staticmethod
     def derivative(s):
         threshold = get_epsilon(s.dtype, "eigval_log")
-        s_deriv = s.reciprocal()
         # pick subgradient 0 for clamped eigenvalues
-        s_deriv[s <= threshold] = 0
-        return s_deriv
+        return torch.where(s > threshold, s.reciprocal(), torch.zeros_like(s))
 
     @staticmethod
     def forward(ctx, X):
         output, s, U, s_modified = modeig_forward(X, matrix_log.applied_fct)
         threshold = get_epsilon(s.dtype, "eigval_log")
-        min_eigenvalue = s.min()
-        if numerical_config.warn_on_clamp and threshold > min_eigenvalue:
-            warnings.warn(
-                f"Eigenvalue clamping occurred in matrix_log: threshold "
-                f"({threshold:.2e}) > min eigenvalue ({min_eigenvalue:.2e}). "
-                f"This might lead to inaccurate results.",
-                UserWarning,
-            )
+        if numerical_config.warn_on_clamp:
+            min_eigenvalue = s.min()
+            if threshold > min_eigenvalue:
+                warnings.warn(
+                    f"Eigenvalue clamping occurred in matrix_log: threshold "
+                    f"({threshold:.2e}) > min eigenvalue ({min_eigenvalue:.2e}). "
+                    f"This might lead to inaccurate results.",
+                    UserWarning,
+                )
         ctx.save_for_backward(s, U, s_modified)
         return output
 

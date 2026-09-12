@@ -35,7 +35,9 @@ def modeig_forward(X, applied_fct, *args):
     """
     s, U = torch.linalg.eigh(X)
     s_modified = applied_fct(s, *args)
-    output = U @ torch.diag_embed(s_modified).to(dtype=X.dtype) @ U.transpose(-1, -2)
+    # Scaling columns is equivalent to right-multiplication by diag(s_modified),
+    # but avoids materializing a full diagonal matrix for every item in the batch.
+    output = (U * s_modified.to(dtype=X.dtype).unsqueeze(-2)) @ U.transpose(-1, -2)
     return output, s, U, s_modified
 
 
@@ -85,20 +87,21 @@ def modeig_backward(grad_output, s, U, s_modified, derivative, *args):
     # Use adaptive threshold that scales with eigenvalue magnitude
     threshold = get_loewner_threshold(s)
     is_eq = denominator.abs() < threshold
-    denominator[is_eq] = 1.0
 
     # Case: sigma_i != sigma_j
     numerator = s_modified.unsqueeze(-1) - s_modified.unsqueeze(-1).transpose(-1, -2)
 
     # Case: sigma_i == sigma_j (use derivative instead)
     s_derivative = derivative(s, *args)
-    numerator[is_eq] = (
-        0.5
-        * (s_derivative.unsqueeze(-1) + s_derivative.unsqueeze(-1).transpose(-1, -2))[
-            is_eq
-        ]
+    equal_eigenvalue_derivative = 0.5 * (
+        s_derivative.unsqueeze(-1) + s_derivative.unsqueeze(-1).transpose(-1, -2)
     )
-    L = numerator / denominator
+    safe_denominator = torch.where(is_eq, torch.ones_like(denominator), denominator)
+    L = torch.where(
+        is_eq,
+        equal_eigenvalue_derivative,
+        numerator / safe_denominator,
+    )
 
     grad_input = (
         U
