@@ -1524,13 +1524,13 @@ print(OmegaConf.to_yaml(filterbank_config))
 #
 # fb_paradigm = FilterBankMotorImagery(
 #     n_classes=4,
-#     filters=filterbank_config.filters,
+#     filters=filterbank_config.data.filters,
 # )
 # X_fb, labels_fb, meta_fb = fb_paradigm.get_data(...)
 #
 # Then create the model with:
 # model = create_model("TensorCSPNet", n_chans=n_chans, n_outputs=n_outputs,
-#                      n_freqs=len(filterbank_config.filters))
+#                      n_freqs=len(filterbank_config.data.filters))
 
 ######################################################################
 # Extending the Benchmark with New Models
