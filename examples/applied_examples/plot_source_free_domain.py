@@ -341,7 +341,7 @@ def extract_spd_features(model, X_data, batch_size=32):
             x = model.cnn(batch[:, None, ...])
             x = model.covpool(x)
             x = model.spdnet(x)
-            spd_list.append(x.cpu())
+            spd_list.append(x)
 
     return torch.cat(spd_list, dim=0)
 
@@ -499,7 +499,7 @@ X_spd_target = extract_spd_features(underlying_model, X_target_shifted, batch_si
 
 print(f"SPD reference initialized. Shape: {target_frechet_mean.shape}")
 
-adapter = SPDLearnableRecenter(target_frechet_mean.shape[-1])
+adapter = SPDLearnableRecenter(target_frechet_mean.shape[-1], device=device)
 adapter.bias = target_frechet_mean.clone()
 
 optimizer_bias = torch.optim.Adam(adapter.parameters(), lr=0.05)
