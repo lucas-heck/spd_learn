@@ -37,7 +37,7 @@ def modeig_forward(X, applied_fct, *args):
     s_modified = applied_fct(s, *args)
     # Scaling columns is equivalent to right-multiplication by diag(s_modified),
     # but avoids materializing a full diagonal matrix for every item in the batch.
-    output = (U * s_modified.to(dtype=X.dtype).unsqueeze(-2)) @ U.transpose(-1, -2)
+    output = (U * s_modified.to(dtype=X.dtype).unsqueeze(-2)) @ U.mT
     return output, s, U, s_modified
 
 
@@ -82,32 +82,28 @@ def modeig_backward(grad_output, s, U, s_modified, derivative, *args):
     "equal" eigenvalues that scales with the magnitude of the eigenvalues.
     """
     # Compute Loewner matrix with adaptive threshold
-    denominator = s.unsqueeze(-1) - s.unsqueeze(-1).transpose(-1, -2)
+    denominator = s.unsqueeze(-1) - s.unsqueeze(-2)
 
     # Use adaptive threshold that scales with eigenvalue magnitude
     threshold = get_loewner_threshold(s)
     is_eq = denominator.abs() < threshold
 
     # Case: sigma_i != sigma_j
-    numerator = s_modified.unsqueeze(-1) - s_modified.unsqueeze(-1).transpose(-1, -2)
+    numerator = s_modified.unsqueeze(-1) - s_modified.unsqueeze(-2)
 
     # Case: sigma_i == sigma_j (use derivative instead)
     s_derivative = derivative(s, *args)
     equal_eigenvalue_derivative = 0.5 * (
-        s_derivative.unsqueeze(-1) + s_derivative.unsqueeze(-1).transpose(-1, -2)
+        s_derivative.unsqueeze(-1) + s_derivative.unsqueeze(-2)
     )
-    safe_denominator = torch.where(is_eq, torch.ones_like(denominator), denominator)
+    safe_denominator = torch.where(is_eq, 1.0, denominator)
     L = torch.where(
         is_eq,
         equal_eigenvalue_derivative,
         numerator / safe_denominator,
     )
 
-    grad_input = (
-        U
-        @ (L * (U.transpose(-1, -2) @ ensure_sym(grad_output) @ U))
-        @ U.transpose(-1, -2)
-    )
+    grad_input = U @ (L * (U.mT @ ensure_sym(grad_output) @ U)) @ U.mT
 
     return grad_input
 

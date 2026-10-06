@@ -13,8 +13,8 @@ from .numerical import get_epsilon, numerical_config
 
 
 def softplus(s):
-    """
-    Scaled SoftPlus function.
+    """Scaled SoftPlus function.
+
     It is scaled so that: f(0) = 1, f(x) -> 0 as x -> -inf and
     f'(x) -> 1 as x -> +inf
 
@@ -28,14 +28,11 @@ def softplus(s):
     torch.Tensor
         SoftPlus of s
     """
-    return torch.log2(
-        1.0 + torch.pow(torch.tensor(2.0, dtype=s.dtype, device=s.device), s)
-    )
+    return torch.log2(1.0 + torch.exp2(s))
 
 
 def inv_softplus(s):
-    """
-    Inverse of the scaled SoftPlus function
+    """Inverse of the scaled SoftPlus function
 
     Parameters
     ----------
@@ -47,14 +44,12 @@ def inv_softplus(s):
     torch.Tensor
         Inverse of SoftPlus of s
     """
-    return torch.log2(
-        torch.pow(torch.tensor(2.0, device=s.device, dtype=s.dtype), s) - 1.0
-    )
+    return torch.log2(torch.exp2(s) - 1.0)
 
 
 class matrix_softplus(Function):
-    r"""
-    Matrix (scaled) SoftPlus of a symmetric matrix.
+    r"""Matrix (scaled) SoftPlus of a symmetric matrix.
+
     It is scaled so that: f(0) = 1, f(x) -> 0 as x -> -inf and
     f'(x) -> 1 as x -> +inf.
 
@@ -75,9 +70,7 @@ class matrix_softplus(Function):
 
     @staticmethod
     def derivative(s):
-        return 1 / (
-            1.0 + torch.pow(torch.tensor(2.0, device=s.device, dtype=s.dtype), -s)
-        )
+        return 1.0 / (1.0 + torch.exp2(-s))
 
     @staticmethod
     def forward(ctx, X):
@@ -94,8 +87,7 @@ class matrix_softplus(Function):
 
 
 class matrix_inv_softplus(Function):
-    r"""
-    Matrix inverse (scaled) SoftPlus of a symmetric matrix.
+    r"""Matrix inverse (scaled) SoftPlus of a symmetric matrix.
 
     Parameters
     ----------
@@ -114,9 +106,7 @@ class matrix_inv_softplus(Function):
 
     @staticmethod
     def derivative(s):
-        return 1 / (
-            1.0 - torch.pow(torch.tensor(2.0, device=s.device, dtype=s.dtype), -s)
-        )
+        return 1.0 / (1.0 - torch.exp2(-s))
 
     @staticmethod
     def forward(ctx, X):
@@ -140,41 +130,50 @@ class matrix_log(Function):
 
     .. math::
 
-        X = U \Lambda U^{T}
+        X = U \Sigma U^\top
 
-    where :math:`U` is an orthogonal matrix of eigenvectors and :math:`\Lambda`
-    is a diagonal matrix of positive eigenvalues.
-
-    The matrix logarithm is then defined as:
+    where :math:`\Sigma = \text{diag}(\sigma_1, \ldots, \sigma_n)` are the
+    eigenvalues and :math:`U` are the eigenvectors. The matrix logarithm is
+    then computed by applying the scalar logarithm to the eigenvalues:
 
     .. math::
 
-        \log(X) = U \log(\Lambda) U^{T}
-
-    This approach is central to the Log-Euclidean framework on SPD manifolds,
-    where operations such as distance computation and averaging are performed
-    in the vector space after applying the matrix logarithm.
-
-    This class adapts the backpropagation according to the chain rule
-    :cite:p:`ionescu2015matrix`, :cite:p:`huang2017riemannian`.
+        \log(X) = U \log(\Sigma) U^\top = U \text{diag}(\log \sigma_1, \ldots, \log \sigma_n) U^\top
 
     Parameters
     ----------
     X : torch.Tensor
-        Symmetric matrix of shape `(..., n, n)`.
+        Symmetric positive definite matrix of shape `(..., n, n)`.
 
     Returns
     -------
     torch.Tensor
         Matrix logarithm of `X`.
 
+    Notes
+    -----
+    For numerical stability, eigenvalues are clamped to a minimum threshold
+    before applying the logarithm. The threshold is dtype-aware and can be
+    configured via :data:`~spd_learn.functional.numerical.numerical_config`.
+
     See Also
     --------
-    :class:`matrix_exp` : Inverse operation, maps back to SPD manifold.
-    :func:`log_euclidean_distance` : Distance using matrix logarithm.
-    :func:`log_euclidean_mean` : Mean under Log-Euclidean metric.
+    :class:`matrix_exp` : Matrix exponential (inverse operation).
     :class:`~spd_learn.modules.LogEig` : Neural network layer using matrix logarithm.
-    :class:`~spd_learn.functional.log_cholesky.cholesky_log` : Alternative via Cholesky decomposition.
+    :func:`~spd_learn.functional.metrics.log_euclidean_distance` : Distance using matrix log.
+
+    References
+    ----------
+    See :cite:p:`arsigny2007geometric` for details on the Log-Euclidean framework.
+
+    Examples
+    --------
+    >>> import torch
+    >>> from spd_learn.functional import matrix_log
+    >>> X = torch.eye(3) * 2  # Scaled identity
+    >>> log_X = matrix_log.apply(X)
+    >>> torch.allclose(log_X, torch.eye(3) * torch.log(torch.tensor(2.0)))
+    True
     """
 
     @staticmethod
@@ -192,7 +191,9 @@ class matrix_log(Function):
     def forward(ctx, X):
         output, s, U, s_modified = modeig_forward(X, matrix_log.applied_fct)
         threshold = get_epsilon(s.dtype, "eigval_log")
-        if numerical_config.warn_on_clamp:
+        if numerical_config.warn_on_clamp and (
+            not s.is_cuda or not torch.is_grad_enabled()
+        ):
             min_eigenvalue = s.min()
             if threshold > min_eigenvalue:
                 warnings.warn(
@@ -218,18 +219,10 @@ class matrix_exp(Function):
     via eigenvalue decomposition:
 
     .. math::
-        X = U \Lambda U^\top
 
-    .. math::
-        \exp(X) = U \exp(\Lambda) U^\top
+        \exp(X) = U \exp(\Sigma) U^\top
 
-    where :math:`\Lambda` is the diagonal matrix of eigenvalues and :math:`U`
-    is the matrix of eigenvectors. The exponential is applied element-wise to
-    the eigenvalues.
-
-    This function is used to map matrices back to the SPD manifold after
-    operations have been performed in the vector space using the matrix
-    logarithm.
+    where :math:`X = U \Sigma U^\top` is the eigendecomposition of :math:`X`.
 
     Parameters
     ----------
@@ -239,14 +232,25 @@ class matrix_exp(Function):
     Returns
     -------
     torch.Tensor
-        Matrix exponential of `X`.
+        Matrix exponential of `X`. Always symmetric positive definite.
 
     See Also
     --------
-    :class:`matrix_log` : Inverse operation, maps SPD to tangent space.
-    :func:`log_euclidean_mean` : Mean under Log-Euclidean metric uses exp/log.
+    :class:`matrix_log` : Matrix logarithm (inverse operation).
     :class:`~spd_learn.modules.ExpEig` : Neural network layer using matrix exponential.
-    :class:`~spd_learn.functional.log_cholesky.cholesky_exp` : Alternative via Cholesky decomposition.
+
+    References
+    ----------
+    See :cite:p:`arsigny2007geometric` for details on the Log-Euclidean framework.
+
+    Examples
+    --------
+    >>> import torch
+    >>> from spd_learn.functional import matrix_exp
+    >>> X = torch.zeros(3, 3)
+    >>> exp_X = matrix_exp.apply(X)
+    >>> torch.allclose(exp_X, torch.eye(3))
+    True
     """
 
     @staticmethod
@@ -270,23 +274,30 @@ class matrix_exp(Function):
 
 
 class clamp_eigvals(Function):
-    """Rectification of the eigenvalues of a symmetric matrix.
+    """Clamps the eigenvalues of a symmetric matrix.
 
-    This function computes the regularized matrix logarithm of a symmetric
-    matrix `X`. It also adapts the backpropagation according to the chain
-    rule :cite:p:`ionescu2015matrix`, :cite:p:`huang2017riemannian`.
+    This function computes the eigenvalue decomposition of a symmetric matrix,
+    clamps the eigenvalues to a minimum threshold, and reconstructs the matrix.
+    This operation projects the matrix onto the cone of SPD matrices with a
+    specified margin.
 
     Parameters
     ----------
     X : torch.Tensor
         Symmetric matrix of shape `(..., n, n)`.
     threshold : float
-        Threshold for numerical stability.
+        Minimum eigenvalue threshold. Eigenvalues smaller than this will be
+        clamped to this value.
 
     Returns
     -------
     torch.Tensor
-        Regularized matrix.
+        Matrix with clamped eigenvalues.
+
+    Notes
+    -----
+    The backward pass uses subgradient 0 for eigenvalues that were clamped,
+    consistent with standard ReLU-like activation functions.
 
     See Also
     --------
@@ -304,9 +315,7 @@ class clamp_eigvals(Function):
 
     @staticmethod
     def derivative(s, threshold):
-        s_deriv = torch.zeros_like(s)
-        s_deriv[s > threshold] = 1
-        return s_deriv
+        return (s > threshold).to(dtype=s.dtype)
 
     @staticmethod
     def forward(ctx, X, threshold):
@@ -383,7 +392,7 @@ class matrix_power(Function):
     Returns
     -------
     torch.Tensor
-        `X` raised to the power of `exponent`.
+        `X` raised to the power of `exponent``.
 
     Notes
     -----
@@ -409,8 +418,7 @@ class matrix_power(Function):
         s_clamped = s.clamp(min=threshold)
         s_deriv = exponent * s_clamped.pow(exponent=exponent - 1.0)
         # pick subgradient 0 for clamped eigenvalues
-        s_deriv[s <= threshold] = 0
-        return s_deriv
+        return torch.where(s > threshold, s_deriv, 0.0)
 
     @staticmethod
     def forward(ctx, X, exponent):
@@ -473,10 +481,9 @@ class matrix_sqrt(Function):
     @staticmethod
     def derivative(s):
         threshold = get_epsilon(s.dtype, "eigval_sqrt")
-        sder = s.rsqrt() / 2
+        sder = s.rsqrt() * 0.5
         # pick subgradient 0 for clamped eigenvalues
-        sder[s <= threshold] = 0
-        return sder
+        return torch.where(s > threshold, sder, 0.0)
 
     @staticmethod
     def forward(ctx, X):
@@ -517,8 +524,7 @@ class matrix_inv_sqrt(Function):
         threshold = get_epsilon(s.dtype, "eigval_inv_sqrt")
         sder = -0.5 * s.pow(-1.5)
         # pick subgradient 0 for clamped eigenvalues
-        sder[s <= threshold] = 0
-        return sder
+        return torch.where(s > threshold, sder, 0.0)
 
     @staticmethod
     def forward(ctx, X):
@@ -557,16 +563,14 @@ class matrix_sqrt_inv(Function):
     :class:`matrix_sqrt` : Computes only matrix square root.
     :class:`matrix_inv_sqrt` : Computes only inverse square root.
     :func:`~spd_learn.functional.airm_geodesic` : Uses matrix sqrt/invsqrt for geodesics.
-    :func:`parallel_transport_airm` : Uses matrix sqrt/invsqrt for transport.
+    :func:`parallel_transport_airm` : Uses matrix sqrt/invsqrt for transport.\
     """
 
     @staticmethod
     def forward(ctx, X):
         output_sqrt, s, U, s_sqrt = modeig_forward(X, matrix_sqrt.applied_fct)
         s_invsqrt = matrix_inv_sqrt.applied_fct(s)
-        output_invsqrt = (
-            U @ torch.diag_embed(s_invsqrt).to(dtype=X.dtype) @ U.transpose(-1, -2)
-        )
+        output_invsqrt = (U * s_invsqrt.to(dtype=X.dtype).unsqueeze(-2)) @ U.mT
         ctx.save_for_backward(s, U, s_sqrt, s_invsqrt)
         return output_sqrt, output_invsqrt
 
@@ -638,17 +642,19 @@ def sym_to_upper(X, preserve_norm=True, upper=True):
     ndim = X.shape[-1]
 
     if upper:
-        ixs = torch.triu_indices(ndim, ndim, offset=0)
+        ixs = torch.triu_indices(ndim, ndim, offset=0, device=X.device)
     else:
-        ixs = torch.tril_indices(ndim, ndim, offset=0)
+        ixs = torch.tril_indices(ndim, ndim, offset=0, device=X.device)
 
     x_vec = X[..., ixs[0], ixs[1]]
 
     if preserve_norm:
         # multiply off-diagonal elements to preserve the norm
-        off_diagonal_mask = ixs[0] != ixs[1]
-        multipliers = torch.ones_like(x_vec)
-        multipliers[..., off_diagonal_mask] = sqrt(2)
+        multipliers = torch.where(
+            ixs[0] != ixs[1],
+            torch.as_tensor(sqrt(2), dtype=X.dtype, device=X.device),
+            torch.as_tensor(1.0, dtype=X.dtype, device=X.device),
+        )
         x_vec = x_vec * multipliers
 
     return x_vec
@@ -702,23 +708,25 @@ def vec_to_sym(x_vec, preserve_norm=True, upper=True):
     ndim = int(ndim)
 
     if upper:
-        ixs = torch.triu_indices(ndim, ndim, offset=0)
+        ixs = torch.triu_indices(ndim, ndim, offset=0, device=x_vec.device)
     else:
-        ixs = torch.tril_indices(ndim, ndim, offset=0)
+        ixs = torch.tril_indices(ndim, ndim, offset=0, device=x_vec.device)
 
     od_mask = ixs[0] != ixs[1]
 
-    X = torch.empty(
+    if preserve_norm:
+        div_mult = torch.where(
+            od_mask,
+            torch.as_tensor(1.0 / sqrt(2), dtype=x_vec.dtype, device=x_vec.device),
+            torch.as_tensor(1.0, dtype=x_vec.dtype, device=x_vec.device),
+        )
+        x_vec = x_vec * div_mult
+
+    X = torch.zeros(
         (*x_vec.shape[:-1], ndim, ndim), device=x_vec.device, dtype=x_vec.dtype
     )
     X[..., ixs[0], ixs[1]] = x_vec
-
-    if preserve_norm:
-        # divide off-diagonal elements to undo norm-preserving scaling
-        X[..., ixs[0, od_mask], ixs[1, od_mask]] /= sqrt(2)
-
-    # Mirror to make symmetric
-    X[..., ixs[1, od_mask], ixs[0, od_mask]] = X[..., ixs[0, od_mask], ixs[1, od_mask]]
+    X[..., ixs[1, od_mask], ixs[0, od_mask]] = x_vec[..., od_mask]
     return X
 
 
