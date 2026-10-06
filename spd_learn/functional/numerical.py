@@ -91,7 +91,8 @@ class NumericalConfig:
         Default: 1e5 (yields ~1e-2 for float32).
     warn_on_clamp : bool
         Whether to emit warnings when eigenvalues are clamped.
-        Default: True.
+        Default: True. Matrix-log warnings are skipped for CUDA inputs requiring
+        gradients to avoid host synchronization; use detached inputs for checks.
     strict_spd_check : bool
         Whether to perform strict SPD checks (slower but safer).
         Default: False.

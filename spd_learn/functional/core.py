@@ -155,6 +155,9 @@ class matrix_log(Function):
     For numerical stability, eigenvalues are clamped to a minimum threshold
     before applying the logarithm. The threshold is dtype-aware and can be
     configured via :data:`~spd_learn.functional.numerical.numerical_config`.
+    Clamping warnings are skipped for CUDA inputs requiring gradients to avoid
+    synchronizing the training loop. To diagnose clamping on CUDA, evaluate a
+    detached input with ``warn_on_clamp=True``.
 
     See Also
     --------
@@ -185,14 +188,16 @@ class matrix_log(Function):
     def derivative(s):
         threshold = get_epsilon(s.dtype, "eigval_log")
         # pick subgradient 0 for clamped eigenvalues
-        return torch.where(s > threshold, s.reciprocal(), torch.zeros_like(s))
+        return torch.where(s > threshold, s.reciprocal(), 0.0)
 
     @staticmethod
     def forward(ctx, X):
         output, s, U, s_modified = modeig_forward(X, matrix_log.applied_fct)
         threshold = get_epsilon(s.dtype, "eigval_log")
+        # Custom Function.forward runs with grad mode disabled, even during
+        # training. Input gradient requirements are available on the context.
         if numerical_config.warn_on_clamp and (
-            not s.is_cuda or not torch.is_grad_enabled()
+            not s.is_cuda or not ctx.needs_input_grad[0]
         ):
             min_eigenvalue = s.min()
             if threshold > min_eigenvalue:
