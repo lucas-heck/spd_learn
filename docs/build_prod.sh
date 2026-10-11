@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright (c) 2024-now SPD Learn Developers
+# SPDX-License-Identifier: BSD-3-Clause
 # Production build script for SPD Learn documentation
 # This script optimizes the build for deployment with smaller size and better SEO
 set -e

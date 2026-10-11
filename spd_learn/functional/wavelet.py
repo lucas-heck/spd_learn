@@ -1,8 +1,8 @@
 # Copyright (c) 2024-now SPD Learn Developers
 # SPDX-License-Identifier: BSD-3-Clause
-# This file contains code derived from the GREEN project by Raphaël Music and Louis Music
-# Original source: https://github.com/Music-Prediction/GREEN
-# Licensed under the Apache License, Version 2.0
+#
+# Re-implementation of GREEN (Paillard, Hipp and Engemann, Patterns, 2025).
+# Reference implementation: https://github.com/Roche/neuro-green
 """Functional operations for wavelet transforms.
 
 This module provides stateless mathematical operations for computing

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 
@@ -36,6 +36,8 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE.txt"]
 requires-python = ">=3.11"
 dependencies = [
     "torch",
@@ -43,6 +45,13 @@ dependencies = [
     "numpy",
     "pyriemann>=0.12",
 ]
+
+[project.urls]
+Homepage = "https://spdlearn.org"
+Documentation = "https://spdlearn.org"
+Source = "https://github.com/spdlearn/spd_learn"
+Issues = "https://github.com/spdlearn/spd_learn/issues"
+Changelog = "https://github.com/spdlearn/spd_learn/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 tests = [

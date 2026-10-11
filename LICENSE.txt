@@ -1,5 +1,4 @@
-BSD 3-Clause License, unless the header of the code section
-explicitly states otherwise.
+BSD 3-Clause License
 
 Copyright (c) 2024-now SPD Learn Developers.
 

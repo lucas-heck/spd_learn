@@ -1,3 +1,6 @@
+# Copyright (c) 2024-now SPD Learn Developers
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Pytest configuration for testing documentation code blocks.
 
 Uses sybil to extract and test Python code blocks from RST files.
