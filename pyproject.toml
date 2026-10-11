@@ -40,9 +40,9 @@ license = "BSD-3-Clause"
 license-files = ["LICENSE.txt"]
 requires-python = ">=3.11"
 dependencies = [
-    "torch",
-    "einops",
-    "numpy",
+    "torch>=2.3",
+    "einops>=0.6",
+    "numpy>=2.0",
     "pyriemann>=0.12",
 ]
 

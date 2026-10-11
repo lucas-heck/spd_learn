@@ -76,6 +76,33 @@ jobs:
           fail_ci_if_error: false
           verbose: true
 
+  # Lowest versions of the runtime dependencies allowed by pyproject.toml,
+  # on the oldest supported Python. Runs the tests that need no brain extra.
+  oldest-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install the package with its lowest direct dependencies
+        run: uv pip install --system --resolution lowest-direct -e .
+
+      - name: Install the test runner
+        run: uv pip install --system "pytest<9.1" pytest_cases
+
+      - name: Show resolved versions
+        run: uv pip list --system | grep -iE '^(torch|numpy|einops|pyriemann|scipy|scikit-learn|array-api-compat) '
+
+      - name: Run tests
+        run: pytest tests/ --ignore=tests/test_correctness.py -k "not braindecode"
+
   # Separate job for integration tests (optional, can be slow)
   integration:
     runs-on: ubuntu-latest
