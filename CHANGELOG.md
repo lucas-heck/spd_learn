@@ -5,6 +5,42 @@ All notable changes to SPD Learn will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-10-11
+
+### Fixed
+
+- Corrected the attribution of the GREEN model and its wavelet layer: both are
+  re-implementations of GREEN (Paillard, Hipp and Engemann, 2025;
+  https://github.com/Roche/neuro-green) and are distributed under BSD-3-Clause
+  like the rest of the package.
+- The integration test job now runs on pushes to `main` (it was gated on a
+  `master` branch that does not exist).
+
+### Tests and continuous integration
+
+- New tests for the logging utilities, the initialization functions, the
+  manifold parametrizations, the Riemannian PGD projection and the
+  Log-Euclidean exponential and logarithmic maps, which had no or partial
+  coverage.
+- New CI job that installs the lowest dependency versions allowed by
+  `pyproject.toml` on Python 3.11 and runs the test suite.
+
+### Packaging
+
+- Declare the license as `BSD-3-Clause` in the package metadata (PEP 639),
+  ship `LICENSE.txt` as a license file, and add the project URLs.
+- State the minimum versions of the runtime dependencies: `torch>=2.3`,
+  `einops>=0.6`, `numpy>=2.0`. pyRiemann 0.12 declares `numpy>=1.25` but uses
+  `ndarray.mT`, which requires NumPy 2.0, and PyTorch supports NumPy 2 from
+  version 2.3.
+- Add an SPDX license header to every source file, including tests, examples
+  and documentation scripts.
+- Add `CITATION.cff` and update the citation in the README and the
+  documentation (title, full author list, software version).
+- Remove a duplicated logo image from the documentation sources.
+- Keep version-control files, unfinished examples and website verification
+  files out of source archives (`.gitattributes` `export-ignore`).
+
 ## [0.2.0] - 2026-09-27
 
 ### Fixed
