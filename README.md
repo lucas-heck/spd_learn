@@ -123,17 +123,19 @@ Works seamlessly with your favorite tools.
 
 ## Citation
 
-If you use SPD Learn in your research, please cite:
+If you use SPD Learn in your research, please cite it as below
+(GitHub's "Cite this repository" button reads the same entry from
+[CITATION.cff](CITATION.cff)):
 
 ```bibtex
-@article{aristimunha2025spdlearn,
-  title     = {SPDlearn: A Geometric Deep Learning Python Library for Neural
-               Decoding Through Trivialization},
+@misc{aristimunha2025spdlearn,
+  title     = {{SPD Learn}: A Geometric Deep Learning Python Library for
+               Neural Decoding Through Trivialization},
   author    = {Aristimunha, Bruno and Ju, Ce and Collas, Antoine and
-               Bouchard, Florent and Thirion, Bertrand and
+               Bouchard, Florent and Mian, Ammar and Thirion, Bertrand and
                Chevallier, Sylvain and Kobler, Reinmar},
-  journal   = {To be submitted},
   year      = {2026},
+  note      = {Software, version 0.2.1},
   url       = {https://github.com/spdlearn/spd_learn}
 }
 ```
@@ -169,4 +171,4 @@ Join our community and help advance deep learning on Riemannian manifolds.
 
 ## License
 
-This project is licensed under the BSD 3-Clause License, unless the header of the code section explicitly states otherwise. See [LICENSE.txt](LICENSE.txt) for details.
+This project is licensed under the BSD 3-Clause License. See [LICENSE.txt](LICENSE.txt) for details.

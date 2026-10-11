@@ -1,3 +1,6 @@
+# Copyright (c) 2024-now SPD Learn Developers
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Tests for Lie Group Batch Normalization (LieBN) for SPD matrices.
 
 Verifies the theoretical guarantees from Chen et al., ICLR 2024

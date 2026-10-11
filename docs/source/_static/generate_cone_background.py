@@ -1,3 +1,6 @@
+# Copyright (c) 2024-now SPD Learn Developers
+# SPDX-License-Identifier: BSD-3-Clause
+
 """
 Generate SPD cone manifold animation with smiling face for documentation.
 Matches the spd_learn logo style with PyTorch flame.

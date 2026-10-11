@@ -1,3 +1,5 @@
+# Copyright (c) 2024-now SPD Learn Developers
+# SPDX-License-Identifier: BSD-3-Clause
 import torch
 
 from spd_learn.functional import matrix_sqrt_inv, spd_egrad2rgrad

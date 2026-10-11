@@ -1,3 +1,6 @@
+# Copyright (c) 2024-now SPD Learn Developers
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Pytest configuration and shared fixtures for spd_learn tests.
 
 This module provides common fixtures and configuration for testing SPD operations,
