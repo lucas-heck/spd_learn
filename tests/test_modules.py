@@ -777,3 +777,20 @@ def test_expeig_raises_on_non_square_matrix():
     bad = torch.randn(2, 3, 4)
     with pytest.raises(ValueError, match="shape \\(\\.\\.\\., n, n\\)"):
         layer(bad)
+
+
+def test_bimap_reset_after_optimizer_update():
+    """Reset must reach the stored parametrization after the layer has trained."""
+    torch.manual_seed(42)
+    layer = BiMap(6, 3, init_method="stiefel", seed=7)
+    initial = layer.weight.detach().clone()
+    optimizer = torch.optim.SGD(layer.parameters(), lr=0.01)
+    x = torch.randn(2, 6, 6)
+    x = x @ x.mT + torch.eye(6)
+    layer(x).square().sum().backward()
+    optimizer.step()
+    assert not torch.allclose(layer.weight, initial)
+
+    layer.reset_parameters()
+    torch.testing.assert_close(layer.weight, initial)
+    torch.testing.assert_close(layer.weight.mT @ layer.weight, torch.eye(3)[None])

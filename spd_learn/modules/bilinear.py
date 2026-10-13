@@ -7,7 +7,7 @@ from typing import Literal, Optional
 import torch
 import torch.nn as nn
 
-from torch.nn.utils import parametrizations
+from torch.nn.utils import parametrizations, parametrize
 
 from .. import init as spd_init
 from ..functional.bilinear import bimap_increase_dim, bimap_transform
@@ -156,7 +156,7 @@ class BiMap(nn.Module):
         plt.show()
     """
 
-    weight: nn.Parameter  # Type annotation for registered parameter
+    weight: torch.Tensor  # A derived tensor when orthogonally parametrized
 
     def __init__(
         self,
@@ -223,17 +223,24 @@ class BiMap(nn.Module):
 
     @torch.no_grad()
     def reset_parameters(self) -> None:
-        """Initialize weight matrix according to the specified method."""
+        """Initialize weights, including an existing orthogonal parametrization."""
+        weight = torch.empty_like(self.weight)
         if self.init_method == "kaiming_uniform":
-            nn.init.kaiming_uniform_(self.weight, a=0.01)
+            nn.init.kaiming_uniform_(weight, a=0.01)
         elif self.init_method == "orthogonal":
-            nn.init.orthogonal_(self.weight)
+            nn.init.orthogonal_(weight)
         elif self.init_method == "stiefel":
-            spd_init.stiefel_(self.weight, seed=self.seed)
+            spd_init.stiefel_(weight, seed=self.seed)
         else:
             raise ValueError(
                 f"Internal error: Invalid init_method '{self.init_method}'"
             )
+        if parametrize.is_parametrized(self, "weight"):
+            # Assignment applies the parametrization's right inverse. In-place
+            # initialization of self.weight would only modify a derived tensor.
+            self.weight = weight
+        else:
+            self.weight.copy_(weight)
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """Apply bilinear transformation to input SPD matrices.
