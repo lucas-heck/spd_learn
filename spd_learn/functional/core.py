@@ -565,9 +565,7 @@ class matrix_sqrt_inv(Function):
     def forward(ctx, X):
         output_sqrt, s, U, s_sqrt = modeig_forward(X, matrix_sqrt.applied_fct)
         s_invsqrt = matrix_inv_sqrt.applied_fct(s)
-        output_invsqrt = (
-            U @ torch.diag_embed(s_invsqrt).to(dtype=X.dtype) @ U.transpose(-1, -2)
-        )
+        output_invsqrt = (U * s_invsqrt.to(dtype=X.dtype).unsqueeze(-2)) @ U.mT
         ctx.save_for_backward(s, U, s_sqrt, s_invsqrt)
         return output_sqrt, output_invsqrt
 

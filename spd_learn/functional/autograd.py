@@ -35,7 +35,7 @@ def modeig_forward(X, applied_fct, *args):
     """
     s, U = torch.linalg.eigh(X)
     s_modified = applied_fct(s, *args)
-    output = U @ torch.diag_embed(s_modified).to(dtype=X.dtype) @ U.transpose(-1, -2)
+    output = (U * s_modified.to(dtype=X.dtype).unsqueeze(-2)) @ U.mT
     return output, s, U, s_modified
 
 
