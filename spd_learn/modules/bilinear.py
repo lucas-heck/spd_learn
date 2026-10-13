@@ -224,23 +224,29 @@ class BiMap(nn.Module):
     @torch.no_grad()
     def reset_parameters(self) -> None:
         """Initialize weights, including an existing orthogonal parametrization."""
-        weight = torch.empty_like(self.weight)
+        is_parametrized = parametrize.is_parametrized(self, "weight")
+        reference = (
+            self.get_parameter("parametrizations.weight.original")
+            if is_parametrized
+            else self.weight
+        )
+        weight = torch.empty_like(reference)
         if self.init_method == "kaiming_uniform":
             nn.init.kaiming_uniform_(weight, a=0.01)
         elif self.init_method == "orthogonal":
-            nn.init.orthogonal_(weight)
+            for w in weight:
+                nn.init.orthogonal_(w)
         elif self.init_method == "stiefel":
             spd_init.stiefel_(weight, seed=self.seed)
         else:
             raise ValueError(
                 f"Internal error: Invalid init_method '{self.init_method}'"
             )
-        if parametrize.is_parametrized(self, "weight"):
-            # Assignment applies the parametrization's right inverse. In-place
-            # initialization of self.weight would only modify a derived tensor.
+        if is_parametrized:
+            # Assign through the parametrization to update its stored state.
             self.weight = weight
         else:
-            self.weight.copy_(weight)
+            reference.copy_(weight)
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """Apply bilinear transformation to input SPD matrices.

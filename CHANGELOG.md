@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Reset BiMap weights through the orthogonal parametrization instead of modifying a derived temporary tensor.
+- Initialize each depthwise BiMap matrix independently when using orthogonal initialization.
 
 ## [0.2.1] - 2026-10-11
 
