@@ -35,7 +35,12 @@ def modeig_forward(X, applied_fct, *args):
     """
     s, U = torch.linalg.eigh(X)
     s_modified = applied_fct(s, *args)
-    output = (U * s_modified.to(dtype=X.dtype).unsqueeze(-2)) @ U.mT
+    scaled = U * s_modified.to(dtype=X.dtype).unsqueeze(-2)
+    if X.is_cuda:
+        # Match the old diagonal-matmul layout. A different CUDA GEMM layout
+        # can amplify float32 rounding differences in a chain of SPD layers.
+        scaled = scaled.contiguous()
+    output = scaled @ U.mT
     return output, s, U, s_modified
 
 
