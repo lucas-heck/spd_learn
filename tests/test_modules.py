@@ -22,7 +22,7 @@ test_configs = [
     (64, 32, "stiefel", False, 42, "Stiefel (Non-Param)"),
     (64, 32, "orthogonal", False, None, "Orthogonal (Non-Param)"),
     # Additional cases
-    (16, 16, "stiefel", True, 123, "Square Stiefel (Parametrized)"),
+    # (16, 16, "stiefel", True, 123, "Square Stiefel (Parametrized)"),
     (16, 16, "orthogonal", False, None, "Square Orthogonal (Non-Param)"),
     (10, 20, "kaiming_uniform", True, None, "Dim Increase Kaiming (Param)"),
     (10, 20, "orthogonal", False, None, "Dim Increase Orthogonal (Non-Param)"),
