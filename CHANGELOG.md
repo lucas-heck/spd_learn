@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Skip matrix-log clamping warnings for CUDA inputs requiring gradients.
+
 ### Performance
 
 - Reduce spectral reconstruction and backward allocations, and cache backend dispatch.
