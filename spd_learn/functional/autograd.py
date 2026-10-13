@@ -101,8 +101,8 @@ def modeig_backward(grad_output, s, U, s_modified, derivative, *args):
     s_derivative = derivative(s, *args)
     if use_sparse_updates:
         numerator[is_eq] = (
-            0.5 * (s_derivative.unsqueeze(-1) + s_derivative.unsqueeze(-2))
-        )[is_eq]
+            0.5 * (s_derivative.unsqueeze(-1) + s_derivative.unsqueeze(-2))[is_eq]
+        )
         L = numerator / denominator
     else:
         equal_eigenvalue_derivative = 0.5 * (
