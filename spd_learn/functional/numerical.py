@@ -489,7 +489,7 @@ def get_loewner_threshold(
     eigenvalues: torch.Tensor,
     *,
     config: Optional[NumericalConfig] = None,
-) -> float:
+) -> torch.Tensor:
     """Get threshold for detecting equal eigenvalues in Loewner matrix.
 
     The Loewner matrix computation requires special handling when eigenvalues
@@ -505,8 +505,8 @@ def get_loewner_threshold(
 
     Returns
     -------
-    float
-        The threshold for eigenvalue equality detection.
+    torch.Tensor
+        Scalar threshold on the eigenvalues' device and in their dtype.
 
     Notes
     -----
@@ -523,10 +523,8 @@ def get_loewner_threshold(
     base_threshold = get_epsilon(eigenvalues.dtype, "loewner_equal", config=config)
 
     # Adaptive scaling based on eigenvalue magnitude
-    max_eigval = eigenvalues.abs().max().item()
-    scale = max(1.0, max_eigval)
-
-    return base_threshold * scale
+    scale = eigenvalues.abs().amax().clamp_min(1.0)
+    return scale * base_threshold
 
 
 class NumericalContext:
