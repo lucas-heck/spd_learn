@@ -20,12 +20,12 @@ test_configs = [
     (64, 32, "kaiming_uniform", True, None, "Kaiming (Parametrized)"),
     (64, 32, "orthogonal", True, None, "Orthogonal (Parametrized)"),
     (64, 32, "stiefel", False, 42, "Stiefel (Non-Param)"),
-    # (64, 32, "orthogonal", False, None, "Orthogonal (Non-Param)"),
+    (64, 32, "orthogonal", False, None, "Orthogonal (Non-Param)"),
     # Additional cases
     # (16, 16, "stiefel", True, 123, "Square Stiefel (Parametrized)"),
-    # (16, 16, "orthogonal", False, None, "Square Orthogonal (Non-Param)"),
+    (16, 16, "orthogonal", False, None, "Square Orthogonal (Non-Param)"),
     (10, 20, "kaiming_uniform", True, None, "Dim Increase Kaiming (Param)"),
-    # (10, 20, "orthogonal", False, None, "Dim Increase Orthogonal (Non-Param)"),
+    (10, 20, "orthogonal", False, None, "Dim Increase Orthogonal (Non-Param)"),
 ]
 
 
@@ -777,3 +777,20 @@ def test_expeig_raises_on_non_square_matrix():
     bad = torch.randn(2, 3, 4)
     with pytest.raises(ValueError, match="shape \\(\\.\\.\\., n, n\\)"):
         layer(bad)
+
+
+def test_bimap_orthogonal_initialization_per_channel():
+    """Each depthwise matrix must have orthonormal columns without parametrization."""
+    torch.manual_seed(42)
+    layer = BiMap(
+        6,
+        3,
+        depthwise=3,
+        parametrized=False,
+        init_method="orthogonal",
+        dtype=torch.float64,
+    )
+    weight = layer.weight.detach()
+    torch.testing.assert_close(
+        weight.mT @ weight, torch.eye(3, dtype=torch.float64).expand(3, -1, -1)
+    )
