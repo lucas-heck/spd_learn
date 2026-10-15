@@ -32,6 +32,19 @@ def test_stiefel_is_orthonormal_and_reproducible(shape, seed):
     torch.testing.assert_close(W1, W2)
 
 
+def test_stiefel_uses_default_rng():
+    with torch.random.fork_rng(devices=[]):
+        torch.manual_seed(123)
+        first = spd_init.stiefel_(torch.empty(16, 8))
+        second = spd_init.stiefel_(torch.empty(16, 8))
+
+        assert not torch.equal(first, second)
+
+        torch.manual_seed(123)
+        torch.testing.assert_close(spd_init.stiefel_(torch.empty(16, 8)), first)
+        torch.testing.assert_close(spd_init.stiefel_(torch.empty(16, 8)), second)
+
+
 @pytest.mark.parametrize("shape", [(6, 3), (2, 6, 3)])
 def test_stiefel_falls_back_to_qr(monkeypatch, caplog, shape):
     def failing_polar_factor(_):
