@@ -151,7 +151,6 @@ class SPDBatchNormMean(nn.Module):
         super().__init__()
         self.num_features = num_features
         self.momentum = momentum
-        self.rebias = rebias
         self.n_iter = n_iter
 
         self.register_buffer(
@@ -159,12 +158,18 @@ class SPDBatchNormMean(nn.Module):
             torch.empty(1, num_features, num_features, device=device, dtype=dtype),
         )
 
-        self.bias = nn.Parameter(
-            torch.empty(1, num_features, num_features, device=device, dtype=dtype),
+        self.bias = (
+            nn.Parameter(
+                torch.empty(1, num_features, num_features, device=device, dtype=dtype),
+            )
+            if rebias
+            else None
         )
 
         self.reset_parameters()
-        register_parametrization(self, "bias", SymmetricPositiveDefinite())
+
+        if self.bias is not None:
+            register_parametrization(self, "bias", SymmetricPositiveDefinite())
 
     def reset_running_stats(self) -> None:
         self.running_mean.zero_()
@@ -173,7 +178,7 @@ class SPDBatchNormMean(nn.Module):
     @torch.no_grad()
     def reset_parameters(self) -> None:
         self.reset_running_stats()
-        if self.rebias:
+        if self.bias is not None:
             # Initialize bias to identity matrix (will become zeros in tangent space)
             self.bias.zero_()
             self.bias[0].fill_diagonal_(1.0)
