@@ -294,7 +294,6 @@ class SPDBatchNormLie(nn.Module):
             self.shift = shift
         else:
             self.shift.copy_(shift)
-        self.shift.fill_(1.0)
 
     def _parametrize(self):
         register_parametrization(self, "bias", SymmetricPositiveDefinite())

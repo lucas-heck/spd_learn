@@ -151,6 +151,7 @@ class SPDBatchNormMean(nn.Module):
         super().__init__()
         self.num_features = num_features
         self.momentum = momentum
+        self.rebias = rebias
         self.n_iter = n_iter
 
         self.register_buffer(
