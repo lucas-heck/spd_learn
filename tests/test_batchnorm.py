@@ -240,15 +240,15 @@ def test_batch_norm_rebias(rebias):
     layer = SPDBatchNormMean(2, momentum=1.0, rebias=rebias, dtype=x.dtype)
 
     if rebias:
-        torch.testing.assert_close(layer.bias, torch.eye(2, dtype=x.dtype).unsqueeze(0))
+        assert torch.allclose(layer.bias, torch.eye(2, dtype=x.dtype).unsqueeze(0))
     else:
         assert layer.bias is None
         assert list(layer.parameters()) == []
 
     with torch.no_grad():
-        torch.testing.assert_close(layer(x), expected)
+        assert torch.allclose(layer(x), expected)
         layer.eval()
-        torch.testing.assert_close(layer(x), expected)
+        assert torch.allclose(layer(x), expected)
 
 
 @pytest.mark.parametrize("layer_class", [SPDBatchNormMean, SPDBatchNormMeanVar])
@@ -262,4 +262,4 @@ def test_spd_batch_norm_applies_assigned_bias(layer_class):
         # The initial evaluation mean is identity, so identity input returns bias.
         output = layer(torch.eye(2, dtype=bias.dtype).unsqueeze(0))
 
-    torch.testing.assert_close(output, bias)
+    assert torch.allclose(output, bias)

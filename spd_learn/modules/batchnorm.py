@@ -3,7 +3,7 @@
 import torch
 
 from torch import nn
-from torch.nn.utils.parametrize import register_parametrization
+from torch.nn.utils.parametrize import is_parametrized, register_parametrization
 
 from ..functional import (
     airm_geodesic,
@@ -180,8 +180,16 @@ class SPDBatchNormMean(nn.Module):
         self.reset_running_stats()
         if self.bias is not None:
             # Initialize bias to identity matrix (will become zeros in tangent space)
-            self.bias.zero_()
-            self.bias[0].fill_diagonal_(1.0)
+            identity = torch.eye(
+                self.num_features,
+                device=self.running_mean.device,
+                dtype=self.running_mean.dtype,
+            ).unsqueeze(0)
+
+            if is_parametrized(self, "bias"):
+                self.bias = identity
+            else:
+                self.bias.copy_(identity)
 
     def forward(self, input):
         """Forward pass of the Riemannian Batch Normalization layer.
@@ -448,10 +456,23 @@ class SPDBatchNormMeanVar(nn.Module):
         self.reset_running_stats()
         if self.affine:
             # Initialize bias to identity matrix (will become zeros in tangent space)
-            self.bias.zero_()
-            self.bias[0].fill_diagonal_(1.0)
+            identity = torch.eye(
+                self.num_features,
+                device=self.running_mean.device,
+                dtype=self.running_mean.dtype,
+            ).unsqueeze(0)
+
+            if is_parametrized(self, "bias"):
+                self.bias = identity
+            else:
+                self.bias.copy_(identity)
+
             # Initialize weight to 1.0 (will become 0 in log space)
-            self.weight.fill_(1.0)
+            weight = self.running_var.new_ones(())
+            if is_parametrized(self, "weight"):
+                self.weight = weight
+            else:
+                self.weight.copy_(weight)
 
     def parametrize(self):
         register_parametrization(
