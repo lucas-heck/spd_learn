@@ -1,0 +1,7 @@
+# Files kept out of `git archive` source tarballs (release archives):
+# version-control metadata, unfinished examples and website verification files.
+.gitattributes export-ignore
+.gitignore export-ignore
+examples/integrate_later export-ignore
+examples/results_parallelized.csv export-ignore
+docs/source/_extra/BingSiteAuth.xml export-ignore

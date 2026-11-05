@@ -662,20 +662,23 @@
 .. raw:: html
 
     <div class="citation-apa">
-      <span class="citation-text">Aristimunha, B., Ju, C., Collas, A., Bouchard, F., Mian, A., Thirion, B., Chevallier, S., &amp; Kobler, R. (2026). SPDlearn: A geometric deep learning Python library for neural decoding through trivialization. <em>To be submitted</em>. https://github.com/spdlearn/spd_learn</span>
-      <button class="citation-copy-btn" onclick="navigator.clipboard.writeText('Aristimunha, B., Ju, C., Collas, A., Bouchard, F., Mian, A., Thirion, B., Chevallier, S., & Kobler, R. (2026). SPDlearn: A geometric deep learning Python library for neural decoding through trivialization. To be submitted. https://github.com/spdlearn/spd_learn'); this.innerHTML='<i class=&quot;fa-solid fa-check&quot;></i>'; setTimeout(() => this.innerHTML='<i class=&quot;fa-solid fa-copy&quot;></i>', 2000);" title="Copy APA citation">
+      <span class="citation-text">Aristimunha, B., Ju, C., Collas, A., Bouchard, F., Mian, A., Thirion, B., Chevallier, S., &amp; Kobler, R. (2026). SPD Learn: A geometric deep learning Python library for neural decoding through trivialization (Version 0.2.1) [Computer software]. https://github.com/spdlearn/spd_learn</span>
+      <button class="citation-copy-btn" onclick="navigator.clipboard.writeText('Aristimunha, B., Ju, C., Collas, A., Bouchard, F., Mian, A., Thirion, B., Chevallier, S., & Kobler, R. (2026). SPD Learn: A geometric deep learning Python library for neural decoding through trivialization (Version 0.2.1) [Computer software]. https://github.com/spdlearn/spd_learn'); this.innerHTML='<i class=&quot;fa-solid fa-check&quot;></i>'; setTimeout(() => this.innerHTML='<i class=&quot;fa-solid fa-copy&quot;></i>', 2000);" title="Copy APA citation">
         <i class="fa-solid fa-copy"></i>
       </button>
     </div>
 
 .. code-block:: bibtex
 
-   @article{aristimunha2025spdlearn,
-     title = {SPDlearn: A Geometric Deep Learning Python Library for Neural Decoding Through Trivialization},
-     author = {Aristimunha, Bruno and Ju, Ce and Collas, Antoine and Bouchard, Florent and Mian, Ammar and Thirion, Bertrand and Chevallier, Sylvain and Kobler, Reinmar},
-     journal = {to be submitted},
-     year = {2026},
-     url = {https://github.com/spdlearn/spd_learn}
+   @misc{aristimunha2025spdlearn,
+     title     = {{SPD Learn}: A Geometric Deep Learning Python Library for
+                  Neural Decoding Through Trivialization},
+     author    = {Aristimunha, Bruno and Ju, Ce and Collas, Antoine and
+                  Bouchard, Florent and Mian, Ammar and Thirion, Bertrand and
+                  Chevallier, Sylvain and Kobler, Reinmar},
+     year      = {2026},
+     note      = {Software, version 0.2.1},
+     url       = {https://github.com/spdlearn/spd_learn}
    }
 
 .. toctree::
