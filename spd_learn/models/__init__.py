@@ -8,6 +8,7 @@ from .phase_spdnet import (  # noqa: F401  (PhaseDelay re-exported)
     PhaseSPDNet,
 )
 from .spdnet import SPDNet
+from .spdtransnet import SPDTransNet  # noqa: F401 (sequence-native registry below)
 from .tensorcsp import TensorCSPNet
 from .tsmnet import TSMNet
 
@@ -29,3 +30,6 @@ __all__ = [
 ]
 
 __filter_bank_models__ = ["TensorCSPNet"]
+
+# Prepared SPD context models have a different contract from raw-EEG models.
+__sequence_models__ = ["SPDTransNet"]

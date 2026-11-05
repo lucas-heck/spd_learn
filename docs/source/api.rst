@@ -74,6 +74,18 @@ Functions for computing various types of covariance matrices from input data.
    cross_covariance
 
 
+SPD Sequence Representations
+----------------------------
+Map SPD matrices to symmetric logarithmic coordinates and reconstruct them.
+
+.. autosummary::
+   :toctree: generated/spd_sequence_functional
+
+   triangular_dimension
+   spd_to_log_tokens
+   log_tokens_to_spd
+
+
 Regularization
 --------------
 Functional regularization utilities for covariance matrices.
@@ -479,6 +491,22 @@ SPD-based pipelines.
    CovLayer
 
 
+Sequence Modeling
+-----------------
+Structure-preserving attention and temporal encoders for prepared SPD contexts.
+
+.. autosummary::
+   :toctree: generated/spd_sequence_modules
+
+   SPDLogTokenizer
+   StructurePreservingMultiheadAttention
+   LearnedSinusoidalPosition
+   SPDTransformerEncoderLayer
+   SPDTemporalEncoder
+   SPDIntraEpochEncoder
+   SPDInterEpochEncoder
+
+
 Matrix Eigen-Operations
 -----------------------
 Modules performing operations based on matrix eigenvalue decomposition (LogEig,
@@ -611,6 +639,7 @@ building blocks from :py:mod:`spd_learn.modules`.
     MAtt
     PhaseSPDNet
     SPDNet
+    SPDTransNet
     TensorCSPNet
     TSMNet
 
@@ -675,6 +704,11 @@ Use this table to choose the right model for your application:
      - Raw EEG
      - Phase-space embedding
      - Low
+   * - :class:`SPDTransNet`
+     - Contextual sleep staging
+     - Prepared SPD contexts
+     - Intra-/inter-epoch SP-MHA
+     - High
 
 
 Decision Flowchart
@@ -750,6 +784,18 @@ Model Architectures
 .. code-block:: text
 
    Conv2d → PatchCov → AttentionManifold → ReEig → LogEig → Linear
+
+**SPDTransNet**:
+
+.. code-block:: text
+
+   SPDLogTokenizer → Token projection → Intra-epoch encoder → Average pooling → Inter-epoch encoder → Central-epoch classifier
+
+Input axes are ``(batch, epoch, band, window, row, column)``. The model predicts
+the central epoch using past and future context; it is noncausal and supports
+no padding or masks. Keep overlapping contexts within the same recording and
+scientific split. Filtering, covariance preparation and whitening are external.
+See :ref:`sphx_glr_generated_auto_examples_howto_plot_spdtransnet.py`.
 
 **Green** - Interpretable wavelet features:
 

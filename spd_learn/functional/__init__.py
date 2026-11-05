@@ -190,11 +190,19 @@ from .parallel_transport import (
 )
 from .regularize import ledoit_wolf, shrinkage_covariance, trace_normalization
 from .riemannian_pgd import spd_rpgd_attack
+from .spdtransnet import (
+    log_tokens_to_spd,
+    spd_to_log_tokens,
+    triangular_dimension,
+)
 from .utils import ensure_sym, unvec_batch, vec_batch
 from .wavelet import compute_gabor_wavelet
 
 
 __all__ = [
+    "spd_to_log_tokens",
+    "log_tokens_to_spd",
+    "triangular_dimension",
     # Core operations
     "matrix_log",
     "matrix_exp",
