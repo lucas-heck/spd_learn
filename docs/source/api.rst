@@ -74,6 +74,17 @@ Functions for computing various types of covariance matrices from input data.
    cross_covariance
 
 
+SPD Graph Operations
+--------------------
+Normalize graph weights and aggregate SPD nodes.
+
+.. autosummary::
+   :toctree: generated/graph_functional
+
+   normalize_spd_adjacency
+   spd_graph_aggregate
+
+
 Regularization
 --------------
 Functional regularization utilities for covariance matrices.
@@ -477,6 +488,17 @@ SPD-based pipelines.
    :toctree: generated/covariance
 
    CovLayer
+   TimeFrequencyCovariances
+
+
+Graph Construction
+------------------
+Construct time-frequency topology and fit lattice-dependent weights on training trials only.
+
+.. autosummary::
+   :toctree: generated/graph_modules
+
+   TimeFrequencyGraph
 
 
 Matrix Eigen-Operations
@@ -516,6 +538,7 @@ acting as analogous operations to linear layers in Euclidean space.
 
    BiMap
    BiMapIncreaseDim
+   GraphBiMap
 
 
 Batch Normalization
@@ -608,6 +631,7 @@ building blocks from :py:mod:`spd_learn.modules`.
 
     EEGSPDNet
     Green
+    GraphCSPNet
     MAtt
     PhaseSPDNet
     SPDNet
@@ -675,6 +699,11 @@ Use this table to choose the right model for your application:
      - Raw EEG
      - Phase-space embedding
      - Low
+   * - :class:`GraphCSPNet`
+     - Time-frequency graph decoding
+     - Externally filtered EEG
+     - Training-fitted SPD graph
+     - High
 
 
 Decision Flowchart
@@ -750,6 +779,17 @@ Model Architectures
 .. code-block:: text
 
    Conv2d → PatchCov → AttentionManifold → ReEig → LogEig → Linear
+
+**GraphCSPNet**:
+
+.. code-block:: text
+
+   Filter-bank trials → TimeFrequencyCovariances → GraphBiMap blocks → SPDBatchNormMean → ReEig → LogEig → Linear
+
+Supply ordered filter-bank trials ``(trial, band, channel, sample)`` and call
+``fit_graph`` on training trials before inference. The absolute covariance and
+ReEig floors require consistent signal units; the model does not filter EEG.
+See :ref:`sphx_glr_generated_auto_examples_howto_plot_graphcspnet.py`.
 
 **Green** - Interpretable wavelet features:
 

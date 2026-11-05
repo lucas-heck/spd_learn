@@ -4,6 +4,11 @@ from .batchnorm import BatchReNorm, SPDBatchNormMean, SPDBatchNormMeanVar
 from .bilinear import BiMap, BiMapIncreaseDim
 from .covariance import CovLayer
 from .dropout import SPDDropout
+from .graph import (  # noqa: F401 (scientific interfaces, not generic SPD unary layers)
+    GraphBiMap,
+    TimeFrequencyCovariances,
+    TimeFrequencyGraph,
+)
 from .liebn import SPDBatchNormLie
 from .manifold import PositiveDefiniteScalar, SymmetricPositiveDefinite
 from .modeig import ExpEig, LogEig, ReEig

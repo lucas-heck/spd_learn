@@ -1,6 +1,7 @@
 # Copyright (c) 2024-now SPD Learn Developers
 # SPDX-License-Identifier: BSD-3-Clause
 from .eegspdnet import EEGSPDNet
+from .graphcsp import GraphCSPNet
 from .green import Green
 from .matt import AttentionManifold, MAtt  # noqa: F401  (AttentionManifold re-exported)
 from .phase_spdnet import (  # noqa: F401  (PhaseDelay re-exported)
@@ -20,6 +21,7 @@ from .tsmnet import TSMNet
 # full models.
 __all__ = [
     "TensorCSPNet",
+    "GraphCSPNet",
     "SPDNet",
     "TSMNet",
     "MAtt",
@@ -28,4 +30,4 @@ __all__ = [
     "Green",
 ]
 
-__filter_bank_models__ = ["TensorCSPNet"]
+__filter_bank_models__ = ["TensorCSPNet", "GraphCSPNet"]
