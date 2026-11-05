@@ -1,6 +1,7 @@
 # Copyright (c) 2024-now SPD Learn Developers
 # SPDX-License-Identifier: BSD-3-Clause
 from .eegspdnet import EEGSPDNet
+from .gbwatt import GBWAtt
 from .green import Green
 from .matt import AttentionManifold, MAtt  # noqa: F401  (AttentionManifold re-exported)
 from .phase_spdnet import (  # noqa: F401  (PhaseDelay re-exported)
@@ -23,6 +24,7 @@ __all__ = [
     "SPDNet",
     "TSMNet",
     "MAtt",
+    "GBWAtt",
     "EEGSPDNet",
     "PhaseSPDNet",
     "Green",

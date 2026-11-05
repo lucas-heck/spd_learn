@@ -74,6 +74,20 @@ Functions for computing various types of covariance matrices from input data.
    cross_covariance
 
 
+Generalized Bures-Wasserstein Geometry
+--------------------------------------
+Power-deformed charts, distances and weighted means for SPD attention.
+
+.. autosummary::
+   :toctree: generated/gbw_functional
+
+   gbw_chart
+   gbw_inverse_chart
+   gbw_distance
+   gbw_mean
+   bw_attention_mean
+
+
 Regularization
 --------------
 Functional regularization utilities for covariance matrices.
@@ -477,6 +491,18 @@ SPD-based pipelines.
    :toctree: generated/covariance
 
    CovLayer
+   GBWPatchCovariance
+
+
+Geometric Attention
+-------------------
+Learn a shared SPD metric and aggregate covariance tokens within each trial.
+
+.. autosummary::
+   :toctree: generated/gbw_modules
+
+   GBWGeometry
+   GBWAttention
 
 
 Matrix Eigen-Operations
@@ -607,6 +633,7 @@ building blocks from :py:mod:`spd_learn.modules`.
    :toctree: generated/
 
     EEGSPDNet
+    GBWAtt
     Green
     MAtt
     PhaseSPDNet
@@ -675,6 +702,11 @@ Use this table to choose the right model for your application:
      - Raw EEG
      - Phase-space embedding
      - Low
+   * - :class:`GBWAtt`
+     - Geometric EEG attention
+     - Raw EEG
+     - Power-deformed BW geometry
+     - High
 
 
 Decision Flowchart
@@ -750,6 +782,17 @@ Model Architectures
 .. code-block:: text
 
    Conv2d → PatchCov → AttentionManifold → ReEig → LogEig → Linear
+
+**GBWAtt**:
+
+.. code-block:: text
+
+   Conv2d → GBWPatchCovariance → GBWAttention → ReEig → LogEig → Upper triangle → Linear
+
+The supplied frontend follows the motor-imagery architecture. Ten fixed-point
+updates approximate the barycenter; they do not guarantee convergence. Standard
+Adam on the registered parametrizations differs from the released optimizer.
+See :ref:`sphx_glr_generated_auto_examples_howto_plot_gbwatt.py`.
 
 **Green** - Interpretable wavelet features:
 

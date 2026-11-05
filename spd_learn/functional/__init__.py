@@ -150,12 +150,17 @@ from .metrics import (
     bures_wasserstein_geodesic,
     bures_wasserstein_mean,
     bures_wasserstein_transport,
+    bw_attention_mean,
     # Log-Cholesky metric
     cholesky_exp,
     cholesky_log,
     exp_map_airm,
     # Log-Euclidean metric
     exp_map_lem,
+    gbw_chart,
+    gbw_distance,
+    gbw_inverse_chart,
+    gbw_mean,
     log_cholesky_distance,
     log_cholesky_geodesic,
     log_cholesky_mean,
@@ -195,6 +200,11 @@ from .wavelet import compute_gabor_wavelet
 
 
 __all__ = [
+    "gbw_chart",
+    "gbw_inverse_chart",
+    "gbw_distance",
+    "gbw_mean",
+    "bw_attention_mean",
     # Core operations
     "matrix_log",
     "matrix_exp",

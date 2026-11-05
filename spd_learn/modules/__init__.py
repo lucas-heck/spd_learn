@@ -4,6 +4,7 @@ from .batchnorm import BatchReNorm, SPDBatchNormMean, SPDBatchNormMeanVar
 from .bilinear import BiMap, BiMapIncreaseDim
 from .covariance import CovLayer
 from .dropout import SPDDropout
+from .gbw import GBWAttention, GBWGeometry, GBWPatchCovariance  # noqa: F401
 from .liebn import SPDBatchNormLie
 from .manifold import PositiveDefiniteScalar, SymmetricPositiveDefinite
 from .modeig import ExpEig, LogEig, ReEig
@@ -13,6 +14,9 @@ from .utils import PatchEmbeddingLayer, Vec, Vech
 from .wavelet import WaveletConv
 
 
+# GBW blocks are explicit public imports above, outside the flat module
+# registry: they have covariance-token/geometry interfaces, not its shared
+# generic matrix-layer constructor and forward contract.
 __all__ = [
     # covariance
     "CovLayer",
