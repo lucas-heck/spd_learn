@@ -1,3 +1,6 @@
+# Copyright (c) 2024-now SPD Learn Developers
+# SPDX-License-Identifier: BSD-3-Clause
+
 # Authors: Bruno Aristimunha
 #
 # License: BSD-3
@@ -21,6 +24,9 @@ from spd_learn.models import __filter_bank_models__ as filter_bank_models
 
 
 mne.set_log_level("ERROR")
+
+# Downloads PhysioNet EEGBCI and trains every model: run by the CI integration job.
+pytestmark = pytest.mark.integration
 
 
 @pytest.fixture()

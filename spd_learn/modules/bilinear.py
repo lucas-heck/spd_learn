@@ -7,7 +7,7 @@ from typing import Literal, Optional
 import torch
 import torch.nn as nn
 
-from torch.nn.utils import parametrizations
+from torch.nn.utils import parametrizations, parametrize
 
 from .. import init as spd_init
 from ..functional.bilinear import bimap_increase_dim, bimap_transform
@@ -67,11 +67,11 @@ class BiMap(nn.Module):
         matrix via projection/retraction on the Stiefel manifold.
     orthogonal_map : {"cayley", "matrix_exp", "householder"}, optional
         The method used for orthogonal parametrization. If `None`, defaults to "cayley".
+        When explicitly using ``"householder"``, exclude the parametrization's
+        original parameter from optimizer weight decay: decaying its fixed sign
+        coordinates can destroy orthogonality in PyTorch.
     init_method : {"kaiming_uniform", "orthogonal", "stiefel"}, default="kaiming_uniform"
         The initialization method for the weight matrix.
-    seed : int, optional
-        The seed for the random number generator used during Stiefel
-        initialization.
 
     Notes
     -----
@@ -153,7 +153,7 @@ class BiMap(nn.Module):
         plt.show()
     """
 
-    weight: nn.Parameter  # Type annotation for registered parameter
+    weight: torch.Tensor  # A derived tensor when orthogonally parametrized
 
     def __init__(
         self,
@@ -165,7 +165,6 @@ class BiMap(nn.Module):
         init_method: Literal[
             "kaiming_uniform", "orthogonal", "stiefel"
         ] = "kaiming_uniform",
-        seed: Optional[int] = None,
         device=None,
         dtype=None,
     ):
@@ -187,7 +186,6 @@ class BiMap(nn.Module):
         self.increase_dim = None
         self.orthogonal_map = orthogonal_map
         self.init_method = init_method
-        self.seed = seed
 
         if out_features > in_features:
             self.increase_dim = BiMapIncreaseDim(
@@ -220,17 +218,30 @@ class BiMap(nn.Module):
 
     @torch.no_grad()
     def reset_parameters(self) -> None:
-        """Initialize weight matrix according to the specified method."""
+        """Initialize weights, including an existing orthogonal parametrization."""
+        is_parametrized = parametrize.is_parametrized(self, "weight")
+        reference = (
+            self.get_parameter("parametrizations.weight.original")
+            if is_parametrized
+            else self.weight
+        )
+        weight = torch.empty_like(reference)
         if self.init_method == "kaiming_uniform":
-            nn.init.kaiming_uniform_(self.weight, a=0.01)
+            nn.init.kaiming_uniform_(weight, a=0.01)
         elif self.init_method == "orthogonal":
-            nn.init.orthogonal_(self.weight)
+            for w in weight:
+                nn.init.orthogonal_(w)
         elif self.init_method == "stiefel":
-            spd_init.stiefel_(self.weight, seed=self.seed)
+            spd_init.stiefel_(weight)
         else:
             raise ValueError(
                 f"Internal error: Invalid init_method '{self.init_method}'"
             )
+        if is_parametrized:
+            # Assign through the parametrization to update its stored state.
+            self.weight = weight
+        else:
+            reference.copy_(weight)
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:
         """Apply bilinear transformation to input SPD matrices.

@@ -1,3 +1,6 @@
+# Copyright (c) 2024-now SPD Learn Developers
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Comparison tests between spd_learn (PyTorch) and pyriemann.
 
 As of the pyriemann (>=0.12) Array API migration, spd_learn delegates most of
