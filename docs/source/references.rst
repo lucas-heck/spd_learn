@@ -264,15 +264,15 @@ If you use SPD Learn in your research, please cite:
 
 .. code-block:: bibtex
 
-   @article{aristimunha2025spdlearn,
-     title={SPDlearn: A Geometric Deep Learning Python Library for
-            Neural Decoding Through Trivialization},
-     author={Aristimunha, Bruno and Ju, Ce and Collas, Antoine and
-             Bouchard, Florent and Thirion, Bertrand and
-             Chevallier, Sylvain and Kobler, Reinmar},
-     journal={To be submitted},
-     year={2026},
-     url={https://github.com/spdlearn/spd_learn}
+   @misc{aristimunha2025spdlearn,
+     title     = {{SPD Learn}: A Geometric Deep Learning Python Library for
+                  Neural Decoding Through Trivialization},
+     author    = {Aristimunha, Bruno and Ju, Ce and Collas, Antoine and
+                  Bouchard, Florent and Mian, Ammar and Thirion, Bertrand and
+                  Chevallier, Sylvain and Kobler, Reinmar},
+     year      = {2026},
+     note      = {Software, version 0.2.1},
+     url       = {https://github.com/spdlearn/spd_learn}
    }
 
 

@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "SPD Learn: A Geometric Deep Learning Python Library for Neural Decoding Through Trivialization"
+version: 0.2.1
+date-released: 2026-10-11
+license: BSD-3-Clause
+url: "https://spdlearn.org"
+repository-code: "https://github.com/spdlearn/spd_learn"
+keywords:
+  - geometric deep learning
+  - symmetric positive definite matrices
+  - brain-computer interfaces
+  - neuroimaging
+  - pytorch
+authors:
+  - family-names: Aristimunha
+    given-names: Bruno
+  - family-names: Ju
+    given-names: Ce
+  - family-names: Collas
+    given-names: Antoine
+  - family-names: Bouchard
+    given-names: Florent
+  - family-names: Mian
+    given-names: Ammar
+  - family-names: Thirion
+    given-names: Bertrand
+  - family-names: Chevallier
+    given-names: Sylvain
+  - family-names: Kobler
+    given-names: Reinmar

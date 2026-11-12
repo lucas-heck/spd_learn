@@ -1,3 +1,6 @@
+# Copyright (c) 2024-now SPD Learn Developers
+# SPDX-License-Identifier: BSD-3-Clause
+
 import pytest
 import torch
 
@@ -14,16 +17,35 @@ from .constants import EXAMPLE_2X2_SPD_MATRIX
 
 test_configs = [
     # User Examples + Variations
-    (64, 32, "kaiming_uniform", True, None, "Kaiming (Parametrized)"),
-    (64, 32, "orthogonal", True, None, "Orthogonal (Parametrized)"),
-    (64, 32, "stiefel", False, 42, "Stiefel (Non-Param)"),
-    # (64, 32, "orthogonal", False, None, "Orthogonal (Non-Param)"),
+    (64, 32, "kaiming_uniform", True, "Kaiming (Parametrized)"),
+    (64, 32, "orthogonal", True, "Orthogonal (Parametrized)"),
+    (64, 32, "stiefel", False, "Stiefel (Non-Param)"),
+    (64, 32, "orthogonal", False, "Orthogonal (Non-Param)"),
     # Additional cases
-    # (16, 16, "stiefel", True, 123, "Square Stiefel (Parametrized)"),
-    # (16, 16, "orthogonal", False, None, "Square Orthogonal (Non-Param)"),
-    (10, 20, "kaiming_uniform", True, None, "Dim Increase Kaiming (Param)"),
-    # (10, 20, "orthogonal", False, None, "Dim Increase Orthogonal (Non-Param)"),
+    (16, 16, "stiefel", True, "Square Stiefel (Parametrized)"),
+    (16, 16, "orthogonal", False, "Square Orthogonal (Non-Param)"),
+    (10, 20, "kaiming_uniform", True, "Dim Increase Kaiming (Param)"),
+    (10, 20, "orthogonal", False, "Dim Increase Orthogonal (Non-Param)"),
 ]
+
+
+@pytest.mark.parametrize("in_features,out_features", [(6, 3), (3, 3), (3, 6)])
+def test_default_bimap_remains_orthogonal_after_adamw(in_features, out_features):
+    """Weight decay must not erase the orthogonal map's sign coordinates."""
+    torch.manual_seed(0)
+    layer = BiMap(in_features, out_features)
+    optimizer = torch.optim.AdamW(layer.parameters(), lr=1e-3, weight_decay=1e-4)
+    x = torch.randn(4, in_features, in_features)
+    x = x @ x.mT + 0.1 * torch.eye(in_features)
+    for _ in range(3):
+        optimizer.zero_grad()
+        layer(x).square().mean().backward()
+        optimizer.step()
+        q = layer.weight
+        assert_close(
+            q.mT @ q, torch.eye(out_features).unsqueeze(0), atol=1e-5, rtol=1e-5
+        )
+        assert torch.linalg.eigvalsh(layer(x)).min() > 0
 
 
 @pytest.fixture(scope="module")
@@ -290,12 +312,12 @@ def test_delay_order(order, lag):
 
 
 @pytest.mark.parametrize(
-    "in_f, out_f, init, param, seed, desc",
+    "in_f, out_f, init, param, desc",
     test_configs,
     ids=[c[-1] for c in test_configs],  # Use description as test ID
 )
 def test_bimap_instantiation_and_shape(
-    in_f, out_f, init, param, seed, desc, input_data, device, dtype
+    in_f, out_f, init, param, desc, input_data, device, dtype
 ):
     """Tests if BiMap layer instantiates and produces correct output shape."""
     layer = BiMap(
@@ -303,7 +325,6 @@ def test_bimap_instantiation_and_shape(
         out_features=out_f,
         init_method=init,
         parametrized=param,
-        seed=seed,
         device=device,
         dtype=dtype,
     )
@@ -322,13 +343,11 @@ def test_bimap_instantiation_and_shape(
 
 
 @pytest.mark.parametrize(
-    "in_f, out_f, init, param, seed, desc",
+    "in_f, out_f, init, param, desc",
     test_configs,
     ids=[c[-1] for c in test_configs],
 )
-def test_bimap_orthogonality_property(
-    in_f, out_f, init, param, seed, desc, device, dtype
-):
+def test_bimap_orthogonality_property(in_f, out_f, init, param, desc, device, dtype):
     """Tests the orthogonality property (W^T W = I) of the weight matrix W.
     - If parametrized=True, the *effective* weight should be orthogonal.
     - If parametrized=False, the *raw* weight depends on the init_method.
@@ -347,7 +366,6 @@ def test_bimap_orthogonality_property(
         out_features=out_f,
         init_method=init,
         parametrized=param,
-        seed=seed,
         device=device,
         dtype=dtype,
     )
@@ -407,32 +425,29 @@ def test_bimap_orthogonality_property(
 
 
 @pytest.mark.parametrize(
-    "in_f, out_f, init, param, seed, desc",
+    "in_f, out_f, init, param, desc",
     # Select a few representative cases for gradient check
     [
-        (10, 5, "kaiming_uniform", True, None, "Grad Kaiming (Param)"),
-        (10, 5, "stiefel", False, 42, "Grad Stiefel (Non-Param)"),
-        (5, 10, "orthogonal", True, None, "Grad Dim Increase (Param)"),
+        (10, 5, "kaiming_uniform", True, "Grad Kaiming (Param)"),
+        (10, 5, "stiefel", False, "Grad Stiefel (Non-Param)"),
+        (5, 10, "orthogonal", True, "Grad Dim Increase (Param)"),
     ],
     ids=[
         c[-1]
         for c in [  # Manually create IDs for this subset
-            (10, 5, "kaiming_uniform", True, None, "Grad Kaiming (Param)"),
-            (10, 5, "stiefel", False, 42, "Grad Stiefel (Non-Param)"),
-            (5, 10, "orthogonal", True, None, "Grad Dim Increase (Param)"),
+            (10, 5, "kaiming_uniform", True, "Grad Kaiming (Param)"),
+            (10, 5, "stiefel", False, "Grad Stiefel (Non-Param)"),
+            (5, 10, "orthogonal", True, "Grad Dim Increase (Param)"),
         ]
     ],
 )
-def test_bimap_gradient_flow(
-    in_f, out_f, init, param, seed, desc, input_data, device, dtype
-):
+def test_bimap_gradient_flow(in_f, out_f, init, param, desc, input_data, device, dtype):
     """Tests if gradients flow back to the layer's weights."""
     layer = BiMap(
         in_features=in_f,
         out_features=out_f,
         init_method=init,
         parametrized=param,
-        seed=seed,
         device=device,
         dtype=dtype,
     ).to(device)  # Ensure layer is on the correct device
@@ -755,3 +770,20 @@ def test_expeig_raises_on_non_square_matrix():
     bad = torch.randn(2, 3, 4)
     with pytest.raises(ValueError, match="shape \\(\\.\\.\\., n, n\\)"):
         layer(bad)
+
+
+def test_bimap_orthogonal_initialization_per_channel():
+    """Each depthwise matrix must have orthonormal columns without parametrization."""
+    torch.manual_seed(42)
+    layer = BiMap(
+        6,
+        3,
+        depthwise=3,
+        parametrized=False,
+        init_method="orthogonal",
+        dtype=torch.float64,
+    )
+    weight = layer.weight.detach()
+    torch.testing.assert_close(
+        weight.mT @ weight, torch.eye(3, dtype=torch.float64).expand(3, -1, -1)
+    )
