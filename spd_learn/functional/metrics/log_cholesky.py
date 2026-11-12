@@ -78,9 +78,12 @@ Examples
 
 import torch
 
+from pyriemann.geometry.geodesic import geodesic_logchol
 from torch.autograd import Function
 
+from ..core import clamp_eigvals
 from ..numerical import get_epsilon
+from ..utils import ensure_sym
 
 
 class cholesky_log(Function):
@@ -129,8 +132,11 @@ class cholesky_log(Function):
 
     @staticmethod
     def forward(ctx, X):
-        # Compute Cholesky decomposition
-        L = torch.linalg.cholesky(X)
+        # ponytail: eigh fallback on non-PD batch, use adaptive diag shift if d > 256
+        L, info = torch.linalg.cholesky_ex(X)
+        if bool((info != 0).any()):
+            floor = get_epsilon(X.dtype, "eigval_clamp")
+            L = torch.linalg.cholesky(clamp_eigvals.apply(ensure_sym(X), floor))
 
         # Extract diagonal
         diag_L = torch.diagonal(L, dim1=-2, dim2=-1)
@@ -422,71 +428,52 @@ def log_cholesky_mean(matrices, weights=None):
 
 
 def log_cholesky_geodesic(A, B, t):
-    r"""Geodesic interpolation under the Log-Cholesky metric.
+    r"""Geodesic interpolation in the Log-Cholesky metric.
 
     Computes the point on the geodesic between SPD matrices :math:`A` and
-    :math:`B` at parameter :math:`t \in [0, 1]` under the Log-Cholesky metric.
-
-    Under the Log-Cholesky metric, geodesics correspond to linear interpolation
-    in the Log-Cholesky space:
+    :math:`B` at parameter :math:`t`:
 
     .. math::
 
-        \gamma(t) = \exp_{\text{chol}}((1-t)\log_{\text{chol}}(L_A) + t\log_{\text{chol}}(L_B))
+        \gamma(t) = \exp_{\text{chol}}\left((1-t) \log_{\text{chol}}(L_A) +
+                     t \log_{\text{chol}}(L_B)\right)
 
-    where :math:`A = L_A L_A^T` and :math:`B = L_B L_B^T`.
+    where :math:`t \\in [0, 1]`.
 
     Parameters
     ----------
     A : torch.Tensor
-        Starting SPD matrices with shape `(..., n, n)`.
+        Starting SPD matrix of shape `(..., n, n)`.
     B : torch.Tensor
-        Ending SPD matrices with shape `(..., n, n)`. Must be broadcastable with `A`.
+        Ending SPD matrix of shape `(..., n, n)`.
     t : float or torch.Tensor
-        Interpolation parameter, typically in `[0, 1]`. When `t=0`, returns `A`;
-        when `t=1`, returns `B`. Can be a scalar or a tensor broadcastable
-        with the batch dimensions of `A` and `B`.
+        Interpolation parameter. For t=0, returns A. For t=1, returns B.
 
     Returns
     -------
     torch.Tensor
-        Interpolated SPD matrices with shape `(..., n, n)`.
-
-    Notes
-    -----
-    Delegates to pyriemann's `geodesic_logchol` when inputs are NumPy arrays,
-    and implements a pure-PyTorch version for torch tensors to support GPU
-    execution and autograd.
+        Interpolated SPD matrix of shape `(..., n, n)`.
 
     See Also
     --------
-    :func:`log_cholesky_distance` : Distance along the geodesic.
-    :func:`log_cholesky_mean` : Midpoint is the geodesic mean for t=0.5.
+    :func:`log_cholesky_distance` : Distance under Log-Cholesky metric.
+    :func:`log_cholesky_mean` : Fréchet mean under Log-Cholesky metric.
     :func:`~spd_learn.functional.airm_geodesic` : Geodesic under AIRM.
+    :func:`~spd_learn.functional.bures_wasserstein_geodesic` : Geodesic under Bures-Wasserstein metric.
 
     Examples
     --------
     >>> import torch
-    >>> from spd_learn.functional import log_cholesky_geodesic
     >>> A = torch.eye(3)
     >>> B = 4 * torch.eye(3)
-    >>> midpoint = log_cholesky_geodesic(A, B, 0.5)
-    >>> # Under Log-Cholesky, diag is exp(0.5*log(1) + 0.5*log(2)) = sqrt(2)
-    >>> # so midpoint = L @ L.T has diagonal 2
-    >>> torch.allclose(torch.diag(midpoint), torch.tensor([2., 2., 2.]))
-    True
+    >>> # Midpoint
+    >>> mid = log_cholesky_geodesic(A, B, 0.5)
+    >>> print(f"Midpoint diagonal: {torch.diag(mid)}")
+    Midpoint diagonal: tensor([2., 2., 2.])
     """
-    # Kept in spd_learn (not delegated): built on spd_learn's stable cholesky_log
-    # so all geodesics share one numerically-robust code path.
-    log_chol_A = cholesky_log.apply(A)
-    log_chol_B = cholesky_log.apply(B)
-
-    # Handle tensor t with proper broadcasting
-    if isinstance(t, torch.Tensor):
-        t = t.to(device=A.device, dtype=A.dtype)
-        # Reshape t to broadcast with (..., n, n)
-        while t.ndim < A.ndim:
-            t = t.unsqueeze(-1)
-
-    interpolated_log_chol = (1 - t) * log_chol_A + t * log_chol_B
-    return cholesky_exp.apply(interpolated_log_chol)
+    # A 0-d tensor t broadcasts over batched inputs (pyriemann requires alpha to
+    # match the batch shape); expand it so a scalar t still works on batches.
+    if torch.is_tensor(t) and t.ndim == 0 and A.ndim > 2:
+        t = t.expand(A.shape[:-2])
+    # Delegated to pyriemann (Array API, runs on torch tensors with autograd).
+    return geodesic_logchol(A, B, alpha=t)

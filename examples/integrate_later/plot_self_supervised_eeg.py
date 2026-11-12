@@ -1,3 +1,6 @@
+# Copyright (c) 2024-now SPD Learn Developers
+# SPDX-License-Identifier: BSD-3-Clause
+
 """
 Self-Supervised Contrastive Learning on SPD Manifolds for EEG
 =============================================================

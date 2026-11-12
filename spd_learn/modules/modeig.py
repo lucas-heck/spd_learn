@@ -444,3 +444,8 @@ class ExpEig(nn.Module):
             X_exp = matrix_exp.apply(X)
 
         return X_exp.to(device=self.device)
+
+
+def _cache_autograd_backend(module, incompatible_keys):
+    """Read the checkpoint's backend flag once, outside the forward hot path."""
+    module._use_autograd = bool(module.autograd_)

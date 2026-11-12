@@ -89,10 +89,7 @@ class PhaseSPDNet(nn.Module):
         torch.Tensor
             Output tensor of shape `(batch_size, n_outputs)`.
         """
-        x_delay = self.phase(input)
-        out = self.spdnet(x_delay)
-
-        return out
+        return self.spdnet(self.phase(input))
 
 
 class PhaseDelay(nn.Module):

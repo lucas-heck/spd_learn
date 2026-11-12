@@ -1,22 +1,36 @@
 # Copyright (c) 2024-now SPD Learn Developers
 # SPDX-License-Identifier: BSD-3-Clause
+import math
+
+from typing import Optional
+
 import torch
 
 from torch import nn
-from torch.nn.utils.parametrize import register_parametrization
+from torch.nn.utils.parametrize import is_parametrized, register_parametrization
 
 from ..functional import (
     airm_geodesic,
+    ensure_sym,
     matrix_inv_sqrt,
     matrix_log,
     matrix_power,
     matrix_sqrt,
+    mean_euclid,
+    mean_harmonic,
+    mean_poweuclid,
 )
 from ..functional.batchnorm import (
     frechet_mean,
     spd_centering,
     spd_rebiasing,
     tangent_space_variance,
+)
+from ..functional.metrics import (
+    bures_wasserstein_geodesic,
+    bures_wasserstein_mean,
+    cholesky_exp,
+    cholesky_log,
 )
 from ..functional.numerical import numerical_config
 from .manifold import PositiveDefiniteScalar, SymmetricPositiveDefinite
@@ -159,12 +173,18 @@ class SPDBatchNormMean(nn.Module):
             torch.empty(1, num_features, num_features, device=device, dtype=dtype),
         )
 
-        self.bias = nn.Parameter(
-            torch.empty(1, num_features, num_features, device=device, dtype=dtype),
+        self.bias = (
+            nn.Parameter(
+                torch.empty(1, num_features, num_features, device=device, dtype=dtype),
+            )
+            if rebias
+            else None
         )
 
         self.reset_parameters()
-        register_parametrization(self, "bias", SymmetricPositiveDefinite())
+
+        if self.bias is not None:
+            register_parametrization(self, "bias", SymmetricPositiveDefinite())
 
     def reset_running_stats(self) -> None:
         self.running_mean.zero_()
@@ -173,10 +193,24 @@ class SPDBatchNormMean(nn.Module):
     @torch.no_grad()
     def reset_parameters(self) -> None:
         self.reset_running_stats()
-        if self.rebias:
+        if self.bias is not None:
             # Initialize bias to identity matrix (will become zeros in tangent space)
-            self.bias.zero_()
-            self.bias[0].fill_diagonal_(1.0)
+            identity = torch.eye(
+                self.num_features,
+                device=self.running_mean.device,
+                dtype=self.running_mean.dtype,
+            ).unsqueeze(0)
+
+            if is_parametrized(self, "bias"):
+                self.bias = identity
+            else:
+                self.bias.copy_(identity)
+
+    def _compute_batch_mean(self, input):
+        return ensure_sym(frechet_mean(input, max_iter=self.n_iter))
+
+    def _update_running_mean(self, mean):
+        self.running_mean = airm_geodesic(self.running_mean, mean, self.momentum)
 
     def forward(self, input):
         """Forward pass of the Riemannian Batch Normalization layer.
@@ -193,21 +227,20 @@ class SPDBatchNormMean(nn.Module):
             Normalized tensor of the same shape as the input.
 
         """
+        input = ensure_sym(input)
         if self.training:
-            mean = frechet_mean(input, max_iter=self.n_iter)
+            mean = self._compute_batch_mean(input)
             with torch.no_grad():
-                self.running_mean = airm_geodesic(
-                    self.running_mean, mean, self.momentum
-                )
+                self._update_running_mean(mean.detach())
         else:
-            mean = self.running_mean
+            mean = ensure_sym(self.running_mean)
 
         mean_invsqrt = matrix_inv_sqrt.apply(mean)
-        output = spd_centering(input, mean_invsqrt)
+        output = ensure_sym(spd_centering(input, mean_invsqrt))
 
         if self.bias is not None:
-            bias_sqrt = matrix_sqrt.apply(self.bias)
-            output = spd_rebiasing(output, bias_sqrt)
+            bias_sqrt = matrix_sqrt.apply(ensure_sym(self.bias))
+            output = ensure_sym(spd_rebiasing(output, bias_sqrt))
 
         return output
 
@@ -443,10 +476,23 @@ class SPDBatchNormMeanVar(nn.Module):
         self.reset_running_stats()
         if self.affine:
             # Initialize bias to identity matrix (will become zeros in tangent space)
-            self.bias.zero_()
-            self.bias[0].fill_diagonal_(1.0)
+            identity = torch.eye(
+                self.num_features,
+                device=self.running_mean.device,
+                dtype=self.running_mean.dtype,
+            ).unsqueeze(0)
+
+            if is_parametrized(self, "bias"):
+                self.bias = identity
+            else:
+                self.bias.copy_(identity)
+
             # Initialize weight to 1.0 (will become 0 in log space)
-            self.weight.fill_(1.0)
+            weight = self.running_var.new_ones(())
+            if is_parametrized(self, "weight"):
+                self.weight = weight
+            else:
+                self.weight.copy_(weight)
 
     def parametrize(self):
         register_parametrization(
@@ -475,47 +521,55 @@ class SPDBatchNormMeanVar(nn.Module):
             Normalized tensor of the same shape as the input.
 
         """
+        input = ensure_sym(input)
         if self.training:
-            batch_mean = frechet_mean(input, max_iter=self.n_iter)
+            batch_mean = ensure_sym(frechet_mean(input, max_iter=self.n_iter))
 
-            # Scalar dispersion: mean squared Frobenius norm of log at the mean (a single scalar, not variance matrix)
-            mean_inv_sqrt = matrix_inv_sqrt.apply(batch_mean)
-            centered = spd_centering(input, mean_inv_sqrt)
-            # Kobler et al. (Eq. 6): P2 L166-175
-            tangent = matrix_log.apply(centered)
-            # At the Fréchet mean, the tangent mean is zero (use zeros explicitly)
-            tangent_ref = torch.zeros_like(tangent[:1])
-            batch_var = tangent_space_variance(tangent, tangent_ref)
+            if input.shape[0] > 1:
+                # Scalar dispersion: mean squared Frobenius norm of log at the mean (a single scalar, not variance matrix)
+                mean_inv_sqrt = matrix_inv_sqrt.apply(batch_mean)
+                centered = ensure_sym(spd_centering(input, mean_inv_sqrt))
+                # Kobler et al. (Eq. 6): P2 L166-175
+                tangent = matrix_log.apply(centered)
+                # At the Fréchet mean, the tangent mean is zero (use zeros explicitly)
+                tangent_ref = torch.zeros_like(tangent[:1])
+                batch_var = tangent_space_variance(tangent, tangent_ref)
+                run_var = (
+                    1.0 - self.momentum
+                ) * self.running_var + self.momentum * batch_var
+            else:
+                # ponytail: uses running_var at batch_size=1, use GroupNorm for B=1
+                batch_var = self.running_var.clone()
+                run_var = self.running_var.clone()
 
             # Momentum running stats (geodesic update for mean)
             run_mean = airm_geodesic(self.running_mean, batch_mean, self.momentum)
-            run_var = (
-                1.0 - self.momentum
-            ) * self.running_var + self.momentum * batch_var
 
             norm_mean = batch_mean
             norm_var = batch_var
         else:
-            run_mean = self.running_mean
+            run_mean = ensure_sym(self.running_mean)
             run_var = self.running_var
             norm_mean = run_mean
             norm_var = run_var
 
         # Kobler et al. (Eq. 10): P3 L241-250 — transport to identity (centering)
         mean_inv_sqrt = matrix_inv_sqrt.apply(norm_mean)
-        output = spd_centering(input, mean_inv_sqrt)
+        output = ensure_sym(spd_centering(input, mean_inv_sqrt))
 
         # Kobler et al. (Eq. 10): P3 L241-250 — dispersion normalization (matrix power)
-        output = matrix_power.apply(
-            output,
-            (self.weight if self.weight is not None else 1.0)
-            / (norm_var + self.eps).sqrt(),
+        output = ensure_sym(
+            matrix_power.apply(
+                output,
+                (self.weight if self.weight is not None else 1.0)
+                / (norm_var + self.eps).sqrt(),
+            )
         )
 
         # Kobler et al. (Eq. 10): P3 L241-250 — re-bias via congruence at learnable mean
         if self.bias is not None:
-            bias_sqrt = matrix_sqrt.apply(self.bias)
-            output = spd_rebiasing(output, bias_sqrt)
+            bias_sqrt = matrix_sqrt.apply(ensure_sym(self.bias))
+            output = ensure_sym(spd_rebiasing(output, bias_sqrt))
 
         if self.training:
             self.running_mean = run_mean.detach()
@@ -612,3 +666,281 @@ class BatchReNorm(nn.Module):
             output = output + self.bias
 
         return output
+
+
+class SPDBatchNormHarmonic(SPDBatchNormMean):
+    r"""Harmonic-Arithmetic Riemannian Batch Normalization for SPD Matrices.
+
+    Implements the ARMAGNAC parametric batch normalization layer for
+    Symmetric Positive Definite (SPD) manifolds
+    :cite:p:`gallet2026armagnac,gallet2026batch`.
+
+    Instead of iterative Karcher flow under the AIRM (as in
+    :class:`SPDBatchNormMean`), ARMAGNAC replaces the Riemannian batch mean
+    with a closed-form parametric geodesic interpolation between the batch
+    harmonic mean and the batch arithmetic mean:
+
+    .. math::
+
+        \mathcal{M}_\alpha = \mathcal{H} \#_\alpha \mathcal{A}
+        = \mathcal{H}^{1/2} \left(\mathcal{H}^{-1/2} \mathcal{A} \mathcal{H}^{-1/2}\right)^\alpha \mathcal{H}^{1/2}
+
+    where :math:`\mathcal{A}` is the arithmetic mean across the batch and
+    :math:`\mathcal{H}` is the harmonic mean:
+
+    .. math::
+
+        \mathcal{A} = \frac{1}{N} \sum_{i=1}^N X_i, \quad
+        \mathcal{H} = \left( \frac{1}{N} \sum_{i=1}^N (X_i + \epsilon I)^{-1} \right)^{-1}
+
+    Parameters
+    ----------
+    num_features : int
+        The size of the SPD matrices (number of features).
+    momentum : float, default=0.1
+        Momentum factor for updating the running mean.
+    alpha : float, default=0.5
+        Initial value for the harmonic-arithmetic interpolation parameter
+        :math:`\alpha \in (0, 1)`.
+    learnable_alpha : bool, default=True
+        If `True`, :math:`\alpha` is optimized via backpropagation.
+    rebias : bool, default=True
+        If `True`, re-biases the centered data with a learnable SPD matrix.
+    eps : float, default=1e-5
+        Small regularization constant added to matrices before inversion.
+    device : Optional[torch.device], default=None
+        Device on which to allocate parameters and buffers.
+    dtype : Optional[torch.dtype], default=None
+        Data type of parameters and buffers.
+    """
+
+    def __init__(
+        self,
+        num_features: int,
+        momentum: float = 0.1,
+        alpha: float = 0.5,
+        learnable_alpha: bool = True,
+        rebias: bool = True,
+        eps: float = 1e-5,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
+    ):
+        if not (0.0 < alpha < 1.0):
+            raise ValueError(f"alpha must be in (0, 1), got {alpha}")
+        super().__init__(
+            num_features=num_features,
+            momentum=momentum,
+            rebias=rebias,
+            device=device,
+            dtype=dtype,
+        )
+        self.initial_alpha = alpha
+        self.learnable_alpha = learnable_alpha
+        self.eps = eps
+
+        logit_init = torch.tensor(
+            math.log(alpha / (1.0 - alpha)), device=device, dtype=dtype
+        )
+        if learnable_alpha:
+            self.alpha_logit = nn.Parameter(logit_init)
+        else:
+            self.register_buffer("alpha_logit", logit_init)
+
+    @torch.no_grad()
+    def reset_parameters(self) -> None:
+        super().reset_parameters()
+        if hasattr(self, "alpha_logit"):
+            self.alpha_logit.fill_(
+                math.log(self.initial_alpha / (1.0 - self.initial_alpha))
+            )
+
+    def _compute_batch_mean(self, input: torch.Tensor) -> torch.Tensor:
+        X_flat = ensure_sym(input.reshape(-1, self.num_features, self.num_features))
+        eye = torch.eye(self.num_features, device=input.device, dtype=input.dtype)
+        A = ensure_sym(mean_euclid(X_flat).unsqueeze(0))
+        H = ensure_sym(mean_harmonic(X_flat + self.eps * eye).unsqueeze(0))
+        return airm_geodesic(H, A, torch.sigmoid(self.alpha_logit))
+
+
+class SPDBatchNormBW(SPDBatchNormMean):
+    r"""Bures-Wasserstein Riemannian Batch Normalization for SPD Matrices.
+
+    Implements Generalized Bures-Wasserstein Batch Normalization (GBWBN)
+    :cite:p:`zhou2025gbwbn`.
+
+    Parameters
+    ----------
+    num_features : int
+        The size of the SPD matrices (number of features).
+    momentum : float, default=0.1
+        Momentum factor for updating the running mean.
+    theta : float, default=1.0
+        Power deformation parameter :math:`\theta > 0`.
+    n_iter : int, default=3
+        Number of fixed-point iterations for Bures-Wasserstein barycenter.
+    rebias : bool, default=True
+        If `True`, re-biases the centered data with a learnable SPD matrix.
+    device : Optional[torch.device], default=None
+        Device on which to allocate parameters and buffers.
+    dtype : Optional[torch.dtype], default=None
+        Data type of parameters and buffers.
+    """
+
+    def __init__(
+        self,
+        num_features: int,
+        momentum: float = 0.1,
+        theta: float = 1.0,
+        n_iter: int = 3,
+        rebias: bool = True,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
+    ):
+        super().__init__(
+            num_features=num_features,
+            momentum=momentum,
+            rebias=rebias,
+            n_iter=n_iter,
+            device=device,
+            dtype=dtype,
+        )
+        self.theta = theta
+
+    def _compute_batch_mean(self, input: torch.Tensor) -> torch.Tensor:
+        X_flat = ensure_sym(input.reshape(-1, self.num_features, self.num_features))
+        if self.n_iter == 1:
+            return ensure_sym(mean_poweuclid(X_flat, 0.5).unsqueeze(0))
+        batch_mean = bures_wasserstein_mean(X_flat, max_iter=self.n_iter)
+        return ensure_sym(batch_mean.reshape(1, self.num_features, self.num_features))
+
+    def _update_running_mean(self, mean: torch.Tensor) -> None:
+        self.running_mean = bures_wasserstein_geodesic(
+            self.running_mean, mean, self.momentum
+        )
+
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        """Forward pass of Bures-Wasserstein Riemannian Batch Normalization."""
+        input = ensure_sym(input)
+        if self.theta != 1.0:
+            input = ensure_sym(matrix_power.apply(input, self.theta))
+        output = super().forward(input)
+        if self.theta != 1.0:
+            output = ensure_sym(matrix_power.apply(output, 1.0 / self.theta))
+        return output
+
+
+class SPDBatchNormCholesky(nn.Module):
+    r"""Log-Cholesky Riemannian Batch Normalization for SPD Matrices.
+
+    Implements Cholesky Batch Normalization (CBN) :cite:p:`zhou2025cbn`.
+
+    Parameters
+    ----------
+    num_features : int
+        The size of the SPD matrices (number of features).
+    momentum : float, default=0.1
+        Momentum factor for moving average of running mean and variance.
+    rebias : bool, default=True
+        If `True`, applies learnable affine scale and bias in Log-Cholesky space.
+    eps : float, default=1e-6
+        Numerical stability epsilon.
+    device : Optional[torch.device], default=None
+        Device on which to allocate parameters and buffers.
+    dtype : Optional[torch.dtype], default=None
+        Data type of parameters and buffers.
+    """
+
+    running_mean: torch.Tensor
+    running_var: torch.Tensor
+
+    def __init__(
+        self,
+        num_features: int,
+        momentum: float = 0.1,
+        rebias: bool = True,
+        eps: float = 1e-6,
+        device: Optional[torch.device] = None,
+        dtype: Optional[torch.dtype] = None,
+    ):
+        super().__init__()
+        self.num_features = num_features
+        self.momentum = momentum
+        self.rebias = rebias
+        self.eps = eps
+
+        self.register_buffer(
+            "running_mean",
+            torch.zeros(1, num_features, num_features, device=device, dtype=dtype),
+        )
+        self.register_buffer(
+            "running_var",
+            torch.ones(1, num_features, num_features, device=device, dtype=dtype),
+        )
+
+        if rebias:
+            self.weight = nn.Parameter(
+                torch.ones(1, num_features, num_features, device=device, dtype=dtype)
+            )
+            self.bias = nn.Parameter(
+                torch.zeros(1, num_features, num_features, device=device, dtype=dtype)
+            )
+        else:
+            self.register_buffer("weight", None)
+            self.register_buffer("bias", None)
+
+        self.reset_parameters()
+
+    def reset_running_stats(self) -> None:
+        self.running_mean.zero_()
+        self.running_var.fill_(1.0)
+
+    @torch.no_grad()
+    def reset_parameters(self) -> None:
+        self.reset_running_stats()
+        if self.weight is not None:
+            self.weight.fill_(1.0)
+        if self.bias is not None:
+            self.bias.zero_()
+
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        """Forward pass of Log-Cholesky Riemannian Batch Normalization."""
+        eye = torch.eye(self.num_features, device=input.device, dtype=input.dtype)
+        Z = cholesky_log.apply(ensure_sym(input) + self.eps * eye)
+
+        if self.training:
+            dims = tuple(range(Z.ndim - 2))
+            mu_Z = Z.mean(dim=dims).reshape(1, self.num_features, self.num_features)
+            with torch.no_grad():
+                self.running_mean = (
+                    1.0 - self.momentum
+                ) * self.running_mean + self.momentum * mu_Z.detach()
+            if Z[..., 0, 0].numel() > 1:
+                var_Z = (
+                    Z.var(dim=dims, unbiased=False).reshape(
+                        1, self.num_features, self.num_features
+                    )
+                    + self.eps
+                )
+                with torch.no_grad():
+                    self.running_var = (
+                        1.0 - self.momentum
+                    ) * self.running_var + self.momentum * var_Z.detach()
+                norm_mean, norm_var = mu_Z, var_Z
+            else:
+                norm_mean, norm_var = mu_Z, self.running_var + self.eps
+        else:
+            norm_mean, norm_var = (
+                self.running_mean,
+                self.running_var.clamp(min=self.eps),
+            )
+
+        Z_hat = (Z - norm_mean) / torch.sqrt(norm_var)
+        if self.weight is not None:
+            Z_hat = Z_hat * self.weight
+        if self.bias is not None:
+            Z_hat = Z_hat + self.bias
+
+        Z_tril = torch.tril(Z_hat)
+        diag_Z = torch.diagonal(Z_tril, dim1=-2, dim2=-1).clamp(min=-20.0, max=20.0)
+        Z_tril = Z_tril.tril(-1) + torch.diag_embed(diag_Z)
+        return ensure_sym(cholesky_exp.apply(Z_tril))

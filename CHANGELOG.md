@@ -5,6 +5,73 @@ All notable changes to SPD Learn will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Enable periodic dynamic trivialization of BiMap weights and exponential SPD
+  biases with `step_dynamic_trivialization(model, optimizer)`, preserving
+  effective parameters and restarting only their optimizer state.
+  TensorCSPNet can opt in to orthogonal BiMaps with `parametrized=True`.
+
+### Changed
+
+- Replace the `seed` argument of `stiefel_` with an optional `generator` argument
+  and remove `BiMap`'s `seed` argument. Use `torch.manual_seed` for reproducible
+  initialization, or pass a `torch.Generator` directly to `stiefel_`.
+- Skip matrix-log clamping warnings for CUDA inputs requiring gradients.
+
+### Fixed
+
+- Reset BiMap weights through the orthogonal parametrization instead of modifying a derived temporary tensor.
+- Initialize each depthwise BiMap matrix independently when using orthogonal initialization.
+- Compute Loewner equality thresholds per matrix so unrelated batch members cannot change another sample's gradient.
+- Stop applying a trainable bias in `SPDBatchNormMean` when `rebias=False`.
+- Reset parametrized biases and scales correctly in `SPDBatchNormMean`,
+  `SPDBatchNormMeanVar`, and `SPDBatchNormLie`.
+- Improve Stiefel initialization accuracy by computing the polar decomposition
+  in float64 before converting back to the input dtype.
+
+### Performance
+
+- Reduce spectral reconstruction and backward allocations, and cache backend dispatch.
+
+## [0.2.1] - 2026-10-11
+
+### Fixed
+
+- Corrected the attribution of the GREEN model and its wavelet layer: both are
+  re-implementations of GREEN (Paillard, Hipp and Engemann, 2025;
+  https://github.com/Roche/neuro-green) and are distributed under BSD-3-Clause
+  like the rest of the package.
+- The integration test job now runs on pushes to `main` (it was gated on a
+  `master` branch that does not exist).
+
+### Tests and continuous integration
+
+- New tests for the logging utilities, the initialization functions, the
+  manifold parametrizations, the Riemannian PGD projection and the
+  Log-Euclidean exponential and logarithmic maps, which had no or partial
+  coverage.
+- New CI job that installs the lowest dependency versions allowed by
+  `pyproject.toml` on Python 3.11 and runs the test suite.
+
+### Packaging
+
+- Declare the license as `BSD-3-Clause` in the package metadata (PEP 639),
+  ship `LICENSE.txt` as a license file, and add the project URLs.
+- State the minimum versions of the runtime dependencies: `torch>=2.3`,
+  `einops>=0.6`, `numpy>=2.0`. pyRiemann 0.12 declares `numpy>=1.25` but uses
+  `ndarray.mT`, which requires NumPy 2.0, and PyTorch supports NumPy 2 from
+  version 2.3.
+- Add an SPDX license header to every source file, including tests, examples
+  and documentation scripts.
+- Add `CITATION.cff` and update the citation in the README and the
+  documentation (title, full author list, software version).
+- Remove a duplicated logo image from the documentation sources.
+- Keep version-control files, unfinished examples and website verification
+  files out of source archives (`.gitattributes` `export-ignore`).
+
 ## [0.2.0] - 2026-09-27
 
 ### Fixed
@@ -61,15 +128,15 @@ SPD Learn provides differentiable Riemannian operations, broadcast-compatible la
 
 Seven state-of-the-art deep learning architectures for SPD matrix data:
 
-| Model | Description | Reference |
-|-------|-------------|-----------|
-| **SPDNet** | Foundational architecture for deep learning on SPD manifolds with dimension reduction | Huang & Van Gool, AAAI 2017 |
-| **EEGSPDNet** | Specialized for EEG classification, combining covariance estimation with SPD layers | Wilson, D. et al., 2024 |
-| **TSMNet** | Tangent Space Mapping Network with convolutional features and SPD batch normalization | Kobler et al., 2022 |
-| **TensorCSPNet** | Multi-band EEG feature extraction using Tensor Common Spatial Patterns | Ju, C. et al. 2022 |
-| **PhaseSPDNet** | Phase-space embedding combined with SPDNet for geometric EEG dynamics analysis | Carrara et al., 2024 |
-| **Green** | Gabor Riemann EEGNet combining Gabor wavelets with Riemannian geometry | Paillard, J. et al., 2025 |
-| **MAtt** | Manifold Attention mechanism for SPD matrices | Pan, Yue-Ting, et al. 2022|
+| Model            | Description                                                                           | Reference                   |
+| ---------------- | ------------------------------------------------------------------------------------- | --------------------------- |
+| **SPDNet**       | Foundational architecture for deep learning on SPD manifolds with dimension reduction | Huang & Van Gool, AAAI 2017 |
+| **EEGSPDNet**    | Specialized for EEG classification, combining covariance estimation with SPD layers   | Wilson, D. et al., 2024     |
+| **TSMNet**       | Tangent Space Mapping Network with convolutional features and SPD batch normalization | Kobler et al., 2022         |
+| **TensorCSPNet** | Multi-band EEG feature extraction using Tensor Common Spatial Patterns                | Ju, C. et al. 2022          |
+| **PhaseSPDNet**  | Phase-space embedding combined with SPDNet for geometric EEG dynamics analysis        | Carrara et al., 2024        |
+| **Green**        | Gabor Riemann EEGNet combining Gabor wavelets with Riemannian geometry                | Paillard, J. et al., 2025   |
+| **MAtt**         | Manifold Attention mechanism for SPD matrices                                         | Pan, Yue-Ting, et al. 2022  |
 
 #### SPD Neural Network Layers
 
@@ -109,12 +176,12 @@ SPD-specific batch normalization layers respecting Riemannian geometry:
 
 Four Riemannian metrics for SPD manifolds:
 
-| Metric | Description |
-|--------|-------------|
-| **AffineInvariantRiemannian** | The canonical metric on SPD manifolds (AIRM) |
-| **LogEuclidean** | Computationally efficient metric via matrix logarithm |
-| **LogCholesky** | Metric based on Cholesky decomposition |
-| **BuresWasserstein** | Optimal transport metric between Gaussians |
+| Metric                        | Description                                           |
+| ----------------------------- | ----------------------------------------------------- |
+| **AffineInvariantRiemannian** | The canonical metric on SPD manifolds (AIRM)          |
+| **LogEuclidean**              | Computationally efficient metric via matrix logarithm |
+| **LogCholesky**               | Metric based on Cholesky decomposition                |
+| **BuresWasserstein**          | Optimal transport metric between Gaussians            |
 
 Each metric provides geodesic distance computation and Fréchet mean computation. Additionally:
 - **AIRM**: Exponential/logarithmic maps, parallel transport, Karcher mean iteration

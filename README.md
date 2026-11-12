@@ -76,9 +76,13 @@ pip install spd_learn
 Or install from source:
 
 ```bash
-git clone https://github.com/spdlearn/spd_learn
-cd spd_learn && pip install -e .
+git clone --depth 1 --branch main https://github.com/spdlearn/spd_learn.git
+cd spd_learn
+pip install -e .
 ```
+
+This downloads the latest source snapshot. For development with full history,
+follow the [contributing guide](CONTRIBUTING.md).
 
 Works with Python 3.11+ and PyTorch 2.0+.
 
@@ -123,17 +127,19 @@ Works seamlessly with your favorite tools.
 
 ## Citation
 
-If you use SPD Learn in your research, please cite:
+If you use SPD Learn in your research, please cite it as below
+(GitHub's "Cite this repository" button reads the same entry from
+[CITATION.cff](CITATION.cff)):
 
 ```bibtex
-@article{aristimunha2025spdlearn,
-  title     = {SPDlearn: A Geometric Deep Learning Python Library for Neural
-               Decoding Through Trivialization},
+@misc{aristimunha2025spdlearn,
+  title     = {{SPD Learn}: A Geometric Deep Learning Python Library for
+               Neural Decoding Through Trivialization},
   author    = {Aristimunha, Bruno and Ju, Ce and Collas, Antoine and
-               Bouchard, Florent and Thirion, Bertrand and
+               Bouchard, Florent and Mian, Ammar and Thirion, Bertrand and
                Chevallier, Sylvain and Kobler, Reinmar},
-  journal   = {To be submitted},
   year      = {2026},
+  note      = {Software, version 0.2.1},
   url       = {https://github.com/spdlearn/spd_learn}
 }
 ```
@@ -158,7 +164,7 @@ Join our community and help advance deep learning on Riemannian manifolds.
   &nbsp;&nbsp;&nbsp;
   <a href="https://www.cea.fr/"><img src="docs/source/_static/support/cea_dark.png" alt="CEA" height="60"></a>
   &nbsp;&nbsp;&nbsp;
-  <a href="https://www.universite-paris-saclay.fr/"><img src="docs/source/_static/support/paris_saclay_dark.jpg" alt="Université Paris-Saclay" height="60"></a>
+  <a href="https://www.universite-paris-saclay.fr/"><img src="docs/source/_static/support/paris_saclay_white.png" alt="Université Paris-Saclay" height="60"></a>
   &nbsp;&nbsp;&nbsp;
   <a href="https://www.atr.jp/"><img src="docs/source/_static/support/atr_logo_white.png" alt="ATR" height="60"></a>
   &nbsp;&nbsp;&nbsp;
@@ -169,4 +175,4 @@ Join our community and help advance deep learning on Riemannian manifolds.
 
 ## License
 
-This project is licensed under the BSD 3-Clause License, unless the header of the code section explicitly states otherwise. See [LICENSE.txt](LICENSE.txt) for details.
+This project is licensed under the BSD 3-Clause License. See [LICENSE.txt](LICENSE.txt) for details.

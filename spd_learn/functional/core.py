@@ -152,12 +152,9 @@ class matrix_log(Function):
 
     Notes
     -----
-    For numerical stability, eigenvalues are clamped to a minimum threshold
-    before applying the logarithm. The threshold is dtype-aware and can be
-    configured via :data:`~spd_learn.functional.numerical.numerical_config`.
     Clamping warnings are skipped for CUDA inputs requiring gradients to avoid
-    synchronizing the training loop. To diagnose clamping on CUDA, evaluate a
-    detached input with ``warn_on_clamp=True``.
+    host synchronization during training. Detached CUDA inputs and CPU inputs
+    retain the diagnostic when ``warn_on_clamp=True``.
 
     See Also
     --------
@@ -575,7 +572,10 @@ class matrix_sqrt_inv(Function):
     def forward(ctx, X):
         output_sqrt, s, U, s_sqrt = modeig_forward(X, matrix_sqrt.applied_fct)
         s_invsqrt = matrix_inv_sqrt.applied_fct(s)
-        output_invsqrt = (U * s_invsqrt.to(dtype=X.dtype).unsqueeze(-2)) @ U.mT
+        scaled = U * s_invsqrt.to(dtype=X.dtype).unsqueeze(-2)
+        if X.is_cuda:
+            scaled = scaled.contiguous()
+        output_invsqrt = scaled @ U.mT
         ctx.save_for_backward(s, U, s_sqrt, s_invsqrt)
         return output_sqrt, output_invsqrt
 
