@@ -8,6 +8,7 @@ from einops import rearrange
 from einops.layers.torch import Rearrange
 from torch import nn
 
+from spd_learn.functional import trace_normalization
 from spd_learn.modules import (
     BiMap,
     CovLayer,
@@ -57,6 +58,8 @@ class TensorCSPNet(nn.Module):
         Dimensions for the BiMap layers.
     momentum : float, default=0.1
         Momentum factor for the Riemannian Brooks Batch Normalization.
+    parametrized : bool, default=False
+        Constrain BiMap weights orthogonally, enabling dynamic trivialization.
     """
 
     def __init__(
@@ -67,10 +70,19 @@ class TensorCSPNet(nn.Module):
         n_freqs: int = 9,
         use_mlp: bool = False,
         tcn_channels: int = 16,
-        dims: Tuple[int, int, int, int] = (22, 36, 36, 22),
+        dims: Tuple[int, int, int, int] | None = None,
         momentum: float = 0.1,
+        *,
+        parametrized: bool = False,
     ):
         super().__init__()
+
+        if dims is None:
+            if n_chans <= 36:
+                mid = max(n_chans, round(36 * n_chans / 22))
+                dims = (n_chans, mid, mid, n_chans)
+            else:
+                dims = (n_chans, 36, 36, 22)
 
         assert len(dims) % 2 == 0, "dims must have an even number of elements."
 
@@ -78,7 +90,7 @@ class TensorCSPNet(nn.Module):
         self.n_chans = n_chans
         self.n_outputs = n_outputs
         self.n_patches = n_patches
-        self.dims = dims
+        self.dims = tuple(dims)
         self.tcn_channels = tcn_channels
         self.tcn_width = n_freqs
         self.momentum = momentum
@@ -107,7 +119,7 @@ class TensorCSPNet(nn.Module):
                         depthwise=self.depthwise,
                         in_features=dim_in,
                         out_features=dim_out,
-                        parametrized=False,
+                        parametrized=parametrized,
                     )
                 )
                 layers.append(ReEig())
@@ -119,7 +131,7 @@ class TensorCSPNet(nn.Module):
                 depthwise=self.depthwise,
                 in_features=dim_in,
                 out_features=dim_out,
-                parametrized=False,
+                parametrized=parametrized,
             )
         )
         layers.append(Rearrange("batch depth cov1 cov2 -> (batch depth) cov1 cov2"))
@@ -167,6 +179,8 @@ class TensorCSPNet(nn.Module):
         torch.Tensor
             Output tensor of shape `(batch_size, n_outputs)`.
         """
+        if input.ndim == 3:
+            input = input.unsqueeze(1).expand(-1, self.tcn_width, -1, -1)
         batch_size, freq_index, _, _ = input.shape
 
         x = self.temporal_segmenter(input)
@@ -179,7 +193,7 @@ class TensorCSPNet(nn.Module):
             freq=freq_index,
         )
 
-        x = self.cov(x)
+        x = trace_normalization(self.cov(x), epsilon=1e-3)
         x = rearrange(
             x,
             "(batch freq patch) ... -> batch (freq patch) ...",

@@ -1,3 +1,6 @@
+# Copyright (c) 2024-now SPD Learn Developers
+# SPDX-License-Identifier: BSD-3-Clause
+
 """
 .. _fnirs-classification:
 
@@ -462,7 +465,10 @@ class SPDNetWithNorm(torch.nn.Module):
         # BiMap: parametrized=False enables gradient flow with ReEig/LogEig
         # init_method="stiefel" ensures proper initialization on Stiefel manifold
         self.bimap = BiMap(
-            n_chans, subspacedim, parametrized=False, init_method="stiefel", seed=42
+            n_chans,
+            subspacedim,
+            parametrized=False,
+            init_method="stiefel",
         )
         self.reeig = ReEig(threshold=threshold)
 
@@ -578,7 +584,6 @@ class TSMNetWithGradientFlow(torch.nn.Module):
             out_features=self.n_bimap_filters,
             parametrized=False,  # Enable gradient flow
             init_method="stiefel",
-            seed=42,
         )
         self.reeig = ReEig(threshold=self.reeig_threshold)
 

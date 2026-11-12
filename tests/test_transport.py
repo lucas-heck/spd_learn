@@ -1,3 +1,6 @@
+# Copyright (c) 2024-now SPD Learn Developers
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Tests for transport and metric implementations: Bures-Wasserstein, Log-Cholesky, and Parallel Transport."""
 
 import pytest
