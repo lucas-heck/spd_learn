@@ -91,8 +91,8 @@ class NumericalConfig:
         Default: 1e5 (yields ~1e-2 for float32).
     warn_on_clamp : bool
         Whether to emit warnings when eigenvalues are clamped.
-        Default: True. Matrix-log warnings are skipped for CUDA inputs requiring
-        gradients to avoid host synchronization; use detached inputs for checks.
+        Default: True. Matrix-log warnings are skipped for non-CPU inputs
+        (except detached CUDA inputs) to avoid host synchronization.
     strict_spd_check : bool
         Whether to perform strict SPD checks (slower but safer).
         Default: False.
@@ -332,8 +332,12 @@ def get_epsilon(
         scale = config.get_scale(name)
         threshold = scale * machine_eps
 
-    # Cache and return
-    config._threshold_cache[cache_key] = threshold
+    # Cache and return (ponytail: no cache write while torch.compile traces -
+    # the dict mutation is a graph break in every spectral op)
+    if not (
+        torch.compiler.is_compiling() or torch._guards.detect_fake_mode() is not None
+    ):
+        config._threshold_cache[cache_key] = threshold
     return threshold
 
 

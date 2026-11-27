@@ -170,9 +170,10 @@ class matrix_log(Function):
 
     Notes
     -----
-    Clamping warnings are skipped for CUDA inputs requiring gradients to avoid
-    host synchronization during training. Detached CUDA inputs and CPU inputs
-    retain the diagnostic when ``warn_on_clamp=True``.
+    Clamping warnings are skipped for non-CPU inputs (except CUDA inputs not
+    requiring gradients) to avoid host synchronization during training. CPU
+    inputs and detached CUDA inputs retain the diagnostic when
+    ``warn_on_clamp=True``.
 
     See Also
     --------
@@ -202,8 +203,10 @@ class matrix_log(Function):
         threshold = get_epsilon(s.dtype, "eigval_log")
         # Custom Function.forward runs with grad mode disabled, even during
         # training. Input gradient requirements are available on the context.
-        if numerical_config.warn_on_clamp and (
-            not s.is_cuda or not ctx.needs_input_grad[0]
+        if (
+            numerical_config.warn_on_clamp
+            and not torch.compiler.is_compiling()
+            and (s.device.type == "cpu" or (s.is_cuda and not ctx.needs_input_grad[0]))
         ):
             min_eigenvalue = s.min()
             if threshold > min_eigenvalue:
@@ -651,9 +654,9 @@ def sym_to_upper(X, preserve_norm=True, upper=True):
     ndim = X.shape[-1]
 
     if upper:
-        ixs = torch.triu_indices(ndim, ndim, offset=0)
+        ixs = torch.triu_indices(ndim, ndim, offset=0, device=X.device)
     else:
-        ixs = torch.tril_indices(ndim, ndim, offset=0)
+        ixs = torch.tril_indices(ndim, ndim, offset=0, device=X.device)
 
     x_vec = X[..., ixs[0], ixs[1]]
 
@@ -715,11 +718,14 @@ def vec_to_sym(x_vec, preserve_norm=True, upper=True):
     ndim = int(ndim)
 
     if upper:
-        ixs = torch.triu_indices(ndim, ndim, offset=0)
+        ixs = torch.triu_indices(ndim, ndim, offset=0, device=x_vec.device)
     else:
-        ixs = torch.tril_indices(ndim, ndim, offset=0)
+        ixs = torch.tril_indices(ndim, ndim, offset=0, device=x_vec.device)
 
-    od_mask = ixs[0] != ixs[1]
+    if upper:
+        off_ixs = torch.triu_indices(ndim, ndim, offset=1, device=x_vec.device)
+    else:
+        off_ixs = torch.tril_indices(ndim, ndim, offset=-1, device=x_vec.device)
 
     X = torch.empty(
         (*x_vec.shape[:-1], ndim, ndim), device=x_vec.device, dtype=x_vec.dtype
@@ -728,10 +734,10 @@ def vec_to_sym(x_vec, preserve_norm=True, upper=True):
 
     if preserve_norm:
         # divide off-diagonal elements to undo norm-preserving scaling
-        X[..., ixs[0, od_mask], ixs[1, od_mask]] /= sqrt(2)
+        X[..., off_ixs[0], off_ixs[1]] /= sqrt(2)
 
     # Mirror to make symmetric
-    X[..., ixs[1, od_mask], ixs[0, od_mask]] = X[..., ixs[0, od_mask], ixs[1, od_mask]]
+    X[..., off_ixs[1], off_ixs[0]] = X[..., off_ixs[0], off_ixs[1]]
     return X
 
 
